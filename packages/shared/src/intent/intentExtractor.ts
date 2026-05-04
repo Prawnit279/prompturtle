@@ -35,8 +35,8 @@ function parseSections(prompt: string): Partial<Record<IntentDimension, Dimensio
   let match: RegExpExecArray | null
 
   while ((match = re.exec(prompt)) !== null) {
-    const rawKey = match[1].toLowerCase().replace(/s$/, '') // normalize plural
-    const value = match[2].trim()
+    const rawKey = match[1]?.toLowerCase().replace(/s$/, '') ?? ''
+    const value = match[2]?.trim() ?? ''
     const key = normalizeHeaderKey(rawKey)
     if (key && value) {
       sections[key] = { value, confidence: 0.92 }
@@ -102,7 +102,7 @@ function extractFormat(prompt: string): DimensionResult {
   const phraseRe = /\b(?:as\s+(?:a\s+|an\s+)?|in\s+(?:a\s+|an\s+)?|formatted?\s+(?:as\s+)?)([\w\s]{2,30}?)(?:\.|,|\s|$)/gi
   let match: RegExpExecArray | null
   while ((match = phraseRe.exec(lower)) !== null) {
-    const candidate = match[1].trim()
+    const candidate = match[1]?.trim() ?? ''
     if (FORMAT_KEYWORDS.some(kw => candidate.includes(kw))) {
       return { value: candidate, confidence: 0.82 }
     }

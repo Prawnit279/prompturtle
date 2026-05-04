@@ -58,15 +58,16 @@ export async function refineIntent(
       }),
       TIMEOUT_MS,
     )
-    llmText = response.content[0].type === 'text' ? response.content[0].text : ''
+    const first = response.content[0]
+    llmText = first?.type === 'text' ? first.text : ''
   } catch {
     return ruleResult
   }
 
-  let parsed: Partial<ExtractedIntent>
+  let parsed: Record<string, unknown>
   try {
     const raw = JSON.parse(llmText.trim())
-    parsed = extractedIntentSchema.partial().parse(raw)
+    parsed = extractedIntentSchema.partial().parse(raw) as Record<string, unknown>
   } catch {
     return ruleResult
   }
