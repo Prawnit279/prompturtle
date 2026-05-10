@@ -12,10 +12,16 @@
     "test": "turbo test",
     "typecheck": "turbo typecheck",
     "lint": "turbo lint",
+    "lint:fix": "turbo lint -- --fix",
+    "format": "prettier --write \"**/*.{ts,tsx,js,mjs,json,md,css}\" --ignore-path .prettierignore",
+    "format:check": "prettier --check \"**/*.{ts,tsx,js,mjs,json,md,css}\" --ignore-path .prettierignore",
     "deploy:backend": "turbo deploy --filter=backend",
     "deploy:frontend": "turbo deploy --filter=frontend"
   },
   "devDependencies": {
+    "@prompturtle/eslint-config": "*",
+    "eslint": "^9.13.0",
+    "prettier": "^3.3.3",
     "turbo": "^2.0.0",
     "typescript": "^5.5.0"
   },

@@ -1,0 +1,31 @@
+{
+  "name": "@prompturtle/eslint-config",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.js",
+    "./base": "./src/base.js",
+    "./react": "./src/react.js",
+    "./node": "./src/node.js"
+  },
+  "dependencies": {
+    "@eslint/js": "^9.13.0",
+    "eslint-plugin-import": "^2.31.0",
+    "eslint-plugin-jsx-a11y": "^6.10.0",
+    "eslint-plugin-n": "^17.11.0",
+    "eslint-plugin-react": "^7.37.0",
+    "eslint-plugin-react-hooks": "^5.0.0",
+    "eslint-plugin-react-refresh": "^0.4.14",
+    "eslint-plugin-unused-imports": "^4.1.4",
+    "globals": "^15.11.0",
+    "typescript-eslint": "^8.12.0"
+  },
+  "peerDependencies": {
+    "eslint": "^9.0.0",
+    "typescript": "^5.5.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.5.0"
+  }
+}

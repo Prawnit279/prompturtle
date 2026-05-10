@@ -1,14 +1,15 @@
-import type Anthropic from '@anthropic-ai/sdk'
-import type { ExtractedIntent, IntentDimension, IntentExtractionResult } from '@prompturtle/shared'
-import { extractedIntentSchema } from './intentSchema'
+import type Anthropic from '@anthropic-ai/sdk';
+import type { ExtractedIntent, IntentDimension, IntentExtractionResult } from '@prompturtle/shared';
 
-const CONFIDENCE_THRESHOLD = 0.6
-const MAX_TOKENS = 400
-const TIMEOUT_MS = 5_000
+import { extractedIntentSchema } from './intentSchema';
+
+const CONFIDENCE_THRESHOLD = 0.6;
+const MAX_TOKENS = 400;
+const TIMEOUT_MS = 5_000;
 
 interface RefineOptions {
-  client: Anthropic
-  confidenceThreshold?: number
+  client: Anthropic;
+  confidenceThreshold?: number;
 }
 
 const SYSTEM_PROMPT = `You are an intent parser. Given a raw prompt, extract the following dimensions as a JSON object.
@@ -26,10 +27,10 @@ Dimensions:
 - success: how to know it worked
 - examples: sample inputs/outputs
 
-Respond with ONLY a valid JSON object matching these exact keys. No markdown, no explanation.`
+Respond with ONLY a valid JSON object matching these exact keys. No markdown, no explanation.`;
 
 function buildUserMessage(prompt: string, missingDimensions: IntentDimension[]): string {
-  return `Raw prompt:\n${prompt}\n\nPlease fill in ONLY these missing dimensions: ${missingDimensions.join(', ')}`
+  return `Raw prompt:\n${prompt}\n\nPlease fill in ONLY these missing dimensions: ${missingDimensions.join(', ')}`;
 }
 
 export async function refineIntent(
@@ -37,17 +38,17 @@ export async function refineIntent(
   ruleResult: IntentExtractionResult,
   options: RefineOptions,
 ): Promise<IntentExtractionResult> {
-  const threshold = options.confidenceThreshold ?? CONFIDENCE_THRESHOLD
+  const threshold = options.confidenceThreshold ?? CONFIDENCE_THRESHOLD;
 
   const dimensionsToRefine = (Object.keys(ruleResult.intent) as IntentDimension[]).filter(
-    k => ruleResult.confidence[k] < threshold,
-  )
+    (k) => ruleResult.confidence[k] < threshold,
+  );
 
   if (dimensionsToRefine.length === 0) {
-    return ruleResult
+    return ruleResult;
   }
 
-  let llmText: string
+  let llmText: string;
   try {
     const response = await withTimeout(
       options.client.messages.create({
@@ -57,48 +58,56 @@ export async function refineIntent(
         messages: [{ role: 'user', content: buildUserMessage(prompt, dimensionsToRefine) }],
       }),
       TIMEOUT_MS,
-    )
-    const first = response.content[0]
-    llmText = first?.type === 'text' ? first.text : ''
+    );
+    const first = response.content[0];
+    llmText = first?.type === 'text' ? first.text : '';
   } catch {
-    return ruleResult
+    return ruleResult;
   }
 
-  let parsed: Record<string, unknown>
+  let parsed: Record<string, unknown>;
   try {
-    const raw = JSON.parse(llmText.trim())
-    parsed = extractedIntentSchema.partial().parse(raw) as Record<string, unknown>
+    const raw: unknown = JSON.parse(llmText.trim()) as unknown;
+    parsed = extractedIntentSchema.partial().parse(raw);
   } catch {
-    return ruleResult
+    return ruleResult;
   }
 
-  const mergedIntent: ExtractedIntent = { ...ruleResult.intent }
-  const mergedConfidence = { ...ruleResult.confidence }
+  const mergedIntent: ExtractedIntent = { ...ruleResult.intent };
+  const mergedConfidence = { ...ruleResult.confidence };
 
   for (const dim of dimensionsToRefine) {
-    const llmValue = parsed[dim]
+    const llmValue = parsed[dim];
     if (typeof llmValue === 'string' && llmValue.trim()) {
-      mergedIntent[dim] = llmValue.trim()
-      mergedConfidence[dim] = 0.75
+      mergedIntent[dim] = llmValue.trim();
+      mergedConfidence[dim] = 0.75;
     }
   }
 
-  const missingDimensions = (Object.keys(mergedIntent) as IntentDimension[]).filter(k => !mergedIntent[k])
+  const missingDimensions = (Object.keys(mergedIntent) as IntentDimension[]).filter(
+    (k) => !mergedIntent[k],
+  );
 
   return {
     intent: mergedIntent,
     confidence: mergedConfidence,
     missingDimensions,
     source: 'hybrid',
-  }
+  };
 }
 
 function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
   return new Promise((resolve, reject) => {
-    const timer = setTimeout(() => reject(new Error('timeout')), ms)
+    const timer = setTimeout(() => reject(new Error('timeout')), ms);
     promise.then(
-      v => { clearTimeout(timer); resolve(v) },
-      e => { clearTimeout(timer); reject(e) },
-    )
-  })
+      (v) => {
+        clearTimeout(timer);
+        resolve(v);
+      },
+      (e: unknown) => {
+        clearTimeout(timer);
+        reject(e instanceof Error ? e : new Error(String(e)));
+      },
+    );
+  });
 }

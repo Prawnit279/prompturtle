@@ -15,6 +15,10 @@
     "typecheck": {
       "dependsOn": ["^build"]
     },
-    "lint": {}
+    "lint": {
+      "dependsOn": ["^build"],
+      "inputs": ["src/**", "eslint.config.mjs", "tsconfig*.json", "package.json"],
+      "outputs": []
+    }
   }
 }
