@@ -56,6 +56,7 @@ model Tenant {
   guardrail_rules GuardrailRule[]
   billing_usage   BillingUsage[]
   embeddings      EmbeddingStore[]
+  users           User[]
 
   @@map("tenants")
 }
@@ -144,6 +145,17 @@ model EmbeddingStore {
 
   @@index([tenant_id])
   @@map("embedding_store")
+}
+
+model User {
+  id         String   @id @default(uuid()) @db.Uuid
+  clerk_id   String   @unique
+  tenant_id  String   @db.Uuid
+  tenant     Tenant   @relation(fields: [tenant_id], references: [id], onDelete: Cascade)
+  created_at DateTime @default(now())
+
+  @@index([tenant_id])
+  @@map("users")
 }
 
 model ProcessedWebhook {
