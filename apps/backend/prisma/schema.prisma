@@ -1,0 +1,154 @@
+generator client {
+  provider        = "prisma-client-js"
+  previewFeatures = ["postgresqlExtensions"]
+}
+
+datasource db {
+  provider   = "postgresql"
+  url        = env("DATABASE_URL")
+  directUrl  = env("DIRECT_URL")
+  extensions = [pgvector(map: "vector", schema: "extensions")]
+}
+
+// ---------------------------------------------------------------------------
+// Enums
+// ---------------------------------------------------------------------------
+
+enum TenantTier {
+  STARTER
+  GROWTH
+  ENTERPRISE
+}
+
+enum AuditAction {
+  CREATE
+  READ
+  UPDATE
+  DELETE
+  TOOL_CALL
+  AUTH_EVENT
+  GUARDRAIL_VIOLATION
+}
+
+/// Phase 2 stubs DO NOT REMOVE
+enum Phase2Feature {
+  CARBON_TRACKING
+  SUPPLIER_RISK
+}
+
+// ---------------------------------------------------------------------------
+// Models
+// ---------------------------------------------------------------------------
+
+model Tenant {
+  id                 String      @id @default(uuid()) @db.Uuid
+  name               String
+  tier               TenantTier  @default(STARTER)
+  api_key_hash       String?
+  stripe_customer_id String?
+  created_at         DateTime    @default(now())
+  updated_at         DateTime    @updatedAt
+
+  // Relations
+  api_keys        ApiKey[]
+  tool_calls      ToolCall[]
+  audit_events    AuditEvent[]
+  guardrail_rules GuardrailRule[]
+  billing_usage   BillingUsage[]
+  embeddings      EmbeddingStore[]
+
+  @@map("tenants")
+}
+
+model ApiKey {
+  id           String    @id @default(uuid()) @db.Uuid
+  tenant_id    String    @db.Uuid
+  tenant       Tenant    @relation(fields: [tenant_id], references: [id], onDelete: Cascade)
+  key_hash     String
+  name         String
+  last_used_at DateTime?
+  is_active    Boolean   @default(true)
+  created_at   DateTime  @default(now())
+
+  @@index([tenant_id])
+  @@map("api_keys")
+}
+
+model ToolCall {
+  id          String   @id @default(uuid()) @db.Uuid
+  tenant_id   String   @db.Uuid
+  tenant      Tenant   @relation(fields: [tenant_id], references: [id], onDelete: Cascade)
+  mcp_server  String
+  tool_name   String
+  model_used  String
+  input_tokens  Int
+  output_tokens Int
+  cost_usd    Decimal  @db.Decimal(12, 6)
+  latency_ms  Int
+  created_at  DateTime @default(now())
+
+  @@index([tenant_id, created_at])
+  @@map("tool_calls")
+}
+
+model AuditEvent {
+  id          String      @id @default(uuid()) @db.Uuid
+  tenant_id   String      @db.Uuid
+  tenant      Tenant      @relation(fields: [tenant_id], references: [id], onDelete: Cascade)
+  action      AuditAction
+  entity_type String
+  entity_id   String
+  payload     Json
+  created_at  DateTime    @default(now())
+
+  @@index([tenant_id, created_at])
+  @@map("audit_events")
+}
+
+model GuardrailRule {
+  id         String   @id @default(uuid()) @db.Uuid
+  tenant_id  String   @db.Uuid
+  tenant     Tenant   @relation(fields: [tenant_id], references: [id], onDelete: Cascade)
+  rule_type  String
+  config     Json
+  is_active  Boolean  @default(true)
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+
+  @@index([tenant_id])
+  @@map("guardrail_rules")
+}
+
+model BillingUsage {
+  id               String   @id @default(uuid()) @db.Uuid
+  tenant_id        String   @db.Uuid
+  tenant           Tenant   @relation(fields: [tenant_id], references: [id], onDelete: Cascade)
+  period_start     DateTime
+  period_end       DateTime
+  total_tool_calls Int
+  total_cost_usd   Decimal  @db.Decimal(14, 6)
+  created_at       DateTime @default(now())
+
+  @@index([tenant_id, period_start])
+  @@map("billing_usage")
+}
+
+model EmbeddingStore {
+  id         String                      @id @default(uuid()) @db.Uuid
+  tenant_id  String                      @db.Uuid
+  tenant     Tenant                      @relation(fields: [tenant_id], references: [id], onDelete: Cascade)
+  content    String
+  embedding  Unsupported("vector(1536)")
+  metadata   Json
+  created_at DateTime                    @default(now())
+
+  @@index([tenant_id])
+  @@map("embedding_store")
+}
+
+model ProcessedWebhook {
+  stripe_event_id String   @id
+  processed_at    DateTime @default(now())
+
+  @@map("processed_webhooks")
+}
