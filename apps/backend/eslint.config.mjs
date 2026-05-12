@@ -1,4 +1,5 @@
 import { node } from '@prompturtle/eslint-config/node';
+import globals from 'globals';
 import tseslint from 'typescript-eslint';
 
 export default tseslint.config(
@@ -13,9 +14,18 @@ export default tseslint.config(
     },
   },
   {
-    // Disable type-aware rules for root-level config files not in tsconfig
+    // Root-level config files are not in tsconfig — disable type-aware
+    // rules AND opt out of projectService so the parser doesn't error.
     files: ['*.mjs', '*.js', '*.ts'],
     ...tseslint.configs.disableTypeChecked,
+    languageOptions: {
+      parserOptions: {
+        projectService: false,
+      },
+      globals: {
+        ...globals.node,
+      },
+    },
   },
   {
     // Relax rules in test files
