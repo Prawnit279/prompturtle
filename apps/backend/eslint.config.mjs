@@ -13,8 +13,8 @@ export default tseslint.config(
     },
   },
   {
-    // Disable type-aware rules for config files not in tsconfig
-    files: ['*.mjs', '*.js'],
+    // Disable type-aware rules for root-level config files not in tsconfig
+    files: ['*.mjs', '*.js', '*.ts'],
     ...tseslint.configs.disableTypeChecked,
   },
   {

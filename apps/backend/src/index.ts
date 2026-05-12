@@ -3,6 +3,8 @@ import dotenv from 'dotenv';
 import express from 'express';
 import helmet from 'helmet';
 
+import logger from './lib/logger';
+
 dotenv.config();
 
 const app = express();
@@ -22,7 +24,7 @@ app.get('/api/health', (_req, res) => {
 });
 
 app.listen(PORT, () => {
-  console.log(`🐢 Prompturtle API running on port ${PORT}`);
+  logger.info({ port: PORT }, '🐢 Prompturtle API running');
 });
 
 export default app;
