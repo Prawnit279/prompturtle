@@ -1,7 +1,7 @@
 import { trackedCall } from '../lib/cost-tracker.js';
 import logger from '../lib/logger.js';
+import { guardrailEngine } from '../guardrails/GuardrailEngine.js';
 
-import { enforceGuardrails } from './stubs.js'; // guardrail stub — replaced by PR 2.4
 import type { ToolCallContext, ToolCallResult, ToolDefinition } from './types.js';
 
 export abstract class BaseMCPServer {
@@ -39,16 +39,17 @@ export abstract class BaseMCPServer {
 
     log.info('mcp.call.start');
 
-    // Step 1: Guardrails (no-op stub until PR 2.4)
-    await enforceGuardrails(ctx);
+    // Step 1: Guardrails — real engine (PR 2.4)
+    await guardrailEngine.enforce(ctx, toolName, input);
 
-    // Step 2: Cost-tracked execution (pass-through stub until PR 2.3)
+    // Step 2: Cost-tracked execution — real tracker (PR 2.3)
     const result = await trackedCall(
       {
-        tenantId: ctx.tenantId,
+        tenantId:  ctx.tenantId,
         mcpServer: this.name,
         toolName,
-        tier: ctx.tier,
+        tier:      ctx.tier,
+        model:     'claude-haiku-4-5-20251001', // overridden per-call by concrete servers
       },
       () => this.executeTool(toolName, input, ctx),
     );

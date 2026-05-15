@@ -2,9 +2,13 @@ import { TenantTier } from '@prompturtle/shared';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 // Mock cost-tracker so BaseMCPServer tests don't hit the real DB.
-// trackedCall is a pass-through here; cost tracking is tested separately.
 vi.mock('../../lib/cost-tracker.js', () => ({
   trackedCall: vi.fn(<T>(_opts: unknown, fn: () => Promise<T>) => fn()),
+}));
+
+// Mock guardrail engine — tested separately in GuardrailEngine.test.ts
+vi.mock('../../guardrails/GuardrailEngine.js', () => ({
+  guardrailEngine: { enforce: vi.fn().mockResolvedValue(undefined) },
 }));
 
 import { BaseMCPServer } from '../BaseMCPServer.js';
