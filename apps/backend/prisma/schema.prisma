@@ -137,15 +137,37 @@ model BillingUsage {
 
 model EmbeddingStore {
   id         String                      @id @default(uuid()) @db.Uuid
-  tenant_id  String                      @db.Uuid
-  tenant     Tenant                      @relation(fields: [tenant_id], references: [id], onDelete: Cascade)
-  content    String
+  // null = global shared data (e.g. HTS codes); non-null = tenant-scoped RAG content
+  tenant_id  String?                     @db.Uuid
+  tenant     Tenant?                     @relation(fields: [tenant_id], references: [id], onDelete: Cascade)
+  // Logical category: 'hts-codes', 'bol-templates', etc.
+  namespace  String                      @default("general")
+  // FK to source record in its own table (e.g. HtsCode.id); null for free-form content
+  entity_id  String?
+  // Free-form content for tenant RAG use (optional for structured entity embeddings)
+  content    String?
   embedding  Unsupported("vector(1536)")
-  metadata   Json
+  metadata   Json?
   created_at DateTime                    @default(now())
 
   @@index([tenant_id])
+  @@index([namespace])
   @@map("embedding_store")
+}
+
+model HtsCode {
+  id          String   @id @default(uuid()) @db.Uuid
+  code        String   @unique
+  description String
+  chapter     String
+  section     String?
+  duty_rate   String?
+  unit        String?
+  created_at  DateTime @default(now())
+  updated_at  DateTime @updatedAt
+
+  @@index([chapter])
+  @@map("hts_codes")
 }
 
 model User {

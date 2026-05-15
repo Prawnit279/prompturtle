@@ -9,7 +9,10 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "typecheck": "tsc --noEmit",
-    "check:no-raw-anthropic": "! grep -rn '\\.messages\\.create\\|\\.messages\\.stream' src/ --include='*.ts' | grep -v '__tests__' | grep -v '\\.test\\.ts' | grep -v 'cost-tracker.ts' | grep -v 'intentRefiner.ts' | grep -v 'mcp/servers/'"
+    "check:no-raw-anthropic": "! grep -rn '\\.messages\\.create\\|\\.messages\\.stream' src/ --include='*.ts' | grep -v '__tests__' | grep -v '\\.test\\.ts' | grep -v 'cost-tracker.ts' | grep -v 'intentRefiner.ts' | grep -v 'mcp/servers/'",
+    "seed:hts": "tsx src/scripts/seed-hts.ts",
+    "db:generate": "prisma generate",
+    "db:push": "prisma db push"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.24.0",
@@ -21,6 +24,7 @@
     "express": "^4.19.0",
     "express-rate-limit": "^7.3.0",
     "helmet": "^7.1.0",
+    "openai": "^6.37.0",
     "pino": "^9.2.0",
     "pino-pretty": "^11.2.0",
     "resend": "^3.3.0",
