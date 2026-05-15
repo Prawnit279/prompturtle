@@ -10,6 +10,7 @@ import { auth } from './middleware/auth.js';
 import { requireTenant } from './middleware/requireTenant.js';
 import { withTenantContext } from './middleware/withTenantContext.js';
 import { BolProcessorMCP } from './mcp/servers/BolProcessorMCP.js';
+import { CarrierRatesMCP } from './mcp/servers/CarrierRatesMCP.js';
 import { GuardrailViolationError } from './mcp/types.js';
 import { registerServer } from './mcp/registry.js';
 
@@ -66,6 +67,7 @@ app.get('/api/health', (_req, res) => {
 
 // ---- MCP server registration ----
 registerServer(new BolProcessorMCP());
+registerServer(new CarrierRatesMCP());
 
 // ---- Protected router ----
 // All feature routes must mount onto this router — enforces auth + tenant context.
