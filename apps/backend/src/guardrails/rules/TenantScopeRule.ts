@@ -66,7 +66,21 @@ export class TenantScopeRule extends BaseRule {
         violations.push(`${fieldPath}="${value}" (expected "${callerTenantId}")`);
       }
 
-      if (value !== null && typeof value === 'object' && !Array.isArray(value)) {
+      if (Array.isArray(value)) {
+        // Scan array elements for nested tenant refs (e.g. bulk-lookup inputs)
+        for (let i = 0; i < value.length; i++) {
+          const item = value[i];
+          if (item !== null && typeof item === 'object' && !Array.isArray(item)) {
+            violations.push(
+              ...this.findCrossTenantRefs(
+                item as Record<string, unknown>,
+                callerTenantId,
+                `${fieldPath}[${i}]`,
+              ),
+            );
+          }
+        }
+      } else if (value !== null && typeof value === 'object') {
         violations.push(
           ...this.findCrossTenantRefs(
             value as Record<string, unknown>,

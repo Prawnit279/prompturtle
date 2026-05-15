@@ -61,6 +61,11 @@ beforeEach(() => {
 describe('GuardrailEngine', () => {
   const engine = new GuardrailEngine();
 
+  beforeEach(() => {
+    // InputSchemaRule is now fail-closed — register schema so engine tests can proceed
+    registerToolSchema('bol-processor', 'parse-bol', z.object({}).passthrough());
+  });
+
   it('passes when no rules fire', async () => {
     mockPrisma.toolCall.count.mockResolvedValue(0);
     await expect(engine.enforce(makeCtx(), 'parse-bol', {})).resolves.toBeUndefined();
@@ -127,9 +132,9 @@ describe('InputSchemaRule', () => {
     expect(result?.rule).toBe('InputSchemaRule');
   });
 
-  it('passes if no schema registered for tool', async () => {
+  it('blocks if no schema registered for tool (fail-closed, M-2)', async () => {
     const result = await rule.check('unknown-tool', { anything: true }, makeCtx());
-    expect(result).toBeNull();
+    expect(result?.rule).toBe('InputSchemaRule');
   });
 });
 

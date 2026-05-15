@@ -18,7 +18,10 @@ export function registerToolSchema(
 
 /**
  * Validates tool input against its registered Zod schema.
- * If no schema is registered for the tool, the rule passes (opt-in validation).
+ *
+ * IMPORTANT: This rule BLOCKS calls to tools with no registered schema (fail-closed).
+ * Every tool exposed by an MCP server must call `registerToolSchema` during startup.
+ * This prevents unvalidated input from reaching tool implementations.
  */
 export class InputSchemaRule extends BaseRule {
   readonly name = 'InputSchemaRule';
@@ -32,8 +35,13 @@ export class InputSchemaRule extends BaseRule {
     const schema = toolSchemas.get(key);
 
     if (!schema) {
-      // No schema registered — pass through
-      return null;
+      // No schema registered — block the call (fail-closed, M-2).
+      // MCP servers must call registerToolSchema() at startup for every tool.
+      return {
+        rule:    this.name,
+        message: `No input schema registered for ${key} — register one via registerToolSchema()`,
+        payload: { tool: key },
+      };
     }
 
     const result = schema.safeParse(input);

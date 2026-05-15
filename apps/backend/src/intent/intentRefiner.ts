@@ -33,6 +33,14 @@ function buildUserMessage(prompt: string, missingDimensions: IntentDimension[]):
   return `Raw prompt:\n${prompt}\n\nPlease fill in ONLY these missing dimensions: ${missingDimensions.join(', ')}`;
 }
 
+/**
+ * Refines low-confidence intent dimensions using Claude.
+ *
+ * ⚠️  COST-TRACKING: This function calls `options.client.messages.create` directly.
+ * Callers that invoke this inside an MCP tool context MUST wrap the call to
+ * `refineIntent` inside `trackedCall(...)` so usage is metered and rate-limited.
+ * Failing to do so bypasses tier enforcement and billing recording.
+ */
 export async function refineIntent(
   prompt: string,
   ruleResult: IntentExtractionResult,

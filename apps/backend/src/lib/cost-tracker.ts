@@ -25,7 +25,7 @@ export class TierLimitExceededError extends Error {
     public readonly current: number,
     public readonly max: number,
   ) {
-    super(`Tenant ${tenantId} (${tier}) exceeded ${limitType}: ${current}/${max}`);
+    super(`Rate limit exceeded (${tier}): ${limitType} ${current}/${max}`);
     this.name = 'TierLimitExceededError';
   }
 }
@@ -60,6 +60,12 @@ export async function trackedCall<T>(
   const limits = TIER_LIMITS[tier];
 
   // ---- 1. Check per-minute rate limit ----
+  // ⚠️  H-2 KNOWN RACE: This is a check-then-act pattern with no DB-level lock.
+  // Concurrent requests from the same tenant can all read the count as N (below limit),
+  // all pass, and all write — exceeding the per-minute budget.
+  // TODO: Replace with Redis INCR + EXPIRE for atomic per-tenant rate limiting in production.
+  //       Alternatively, use pg_advisory_xact_lock keyed on tenantId inside a transaction
+  //       that covers both the count read and the placeholder record write.
   const oneMinuteAgo = new Date(Date.now() - 60_000);
   const callsThisMinute = await prisma.toolCall.count({
     where: {
@@ -79,9 +85,9 @@ export async function trackedCall<T>(
   }
 
   // ---- 2. Check monthly limit ----
-  const startOfMonth = new Date();
-  startOfMonth.setDate(1);
-  startOfMonth.setHours(0, 0, 0, 0);
+  // Use UTC so the window is consistent regardless of server timezone (M-1).
+  const now = new Date();
+  const startOfMonth = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
 
   const callsThisMonth = await prisma.toolCall.count({
     where: {

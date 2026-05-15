@@ -40,14 +40,6 @@ export class GuardrailViolationError extends Error {
   }
 }
 
-/** Error thrown when a tenant exceeds their tier limits (stub for PR 2.3) */
-export class TierLimitExceededError extends Error {
-  constructor(
-    public readonly tenantId: string,
-    public readonly tier: TenantTier,
-    message: string,
-  ) {
-    super(message);
-    this.name = 'TierLimitExceededError';
-  }
-}
+// TierLimitExceededError lives in lib/cost-tracker.ts (authoritative, with limitType/current/max).
+// Import it from there — not from this file.
+// Re-exported via mcp/index.ts for convenience.
