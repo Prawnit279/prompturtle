@@ -9,7 +9,9 @@ import logger from './lib/logger.js';
 import { auth } from './middleware/auth.js';
 import { requireTenant } from './middleware/requireTenant.js';
 import { withTenantContext } from './middleware/withTenantContext.js';
+import { BolProcessorMCP } from './mcp/servers/BolProcessorMCP.js';
 import { GuardrailViolationError } from './mcp/types.js';
+import { registerServer } from './mcp/registry.js';
 
 dotenv.config();
 
@@ -61,6 +63,9 @@ app.get('/api/health', (_req, res) => {
     timestamp: new Date().toISOString(),
   });
 });
+
+// ---- MCP server registration ----
+registerServer(new BolProcessorMCP());
 
 // ---- Protected router ----
 // All feature routes must mount onto this router — enforces auth + tenant context.

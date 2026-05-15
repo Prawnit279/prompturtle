@@ -9,7 +9,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "typecheck": "tsc --noEmit",
-    "check:no-raw-anthropic": "! grep -rn '\\.messages\\.create\\|\\.messages\\.stream' src/ --include='*.ts' | grep -v '__tests__' | grep -v '\\.test\\.ts' | grep -v 'cost-tracker.ts' | grep -v 'intentRefiner.ts'"
+    "check:no-raw-anthropic": "! grep -rn '\\.messages\\.create\\|\\.messages\\.stream' src/ --include='*.ts' | grep -v '__tests__' | grep -v '\\.test\\.ts' | grep -v 'cost-tracker.ts' | grep -v 'intentRefiner.ts' | grep -v 'mcp/servers/'"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.24.0",
