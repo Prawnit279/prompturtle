@@ -1,6 +1,7 @@
+import { trackedCall } from '../lib/cost-tracker.js';
 import logger from '../lib/logger.js';
 
-import { enforceGuardrails, trackedCall } from './stubs.js';
+import { enforceGuardrails } from './stubs.js'; // guardrail stub — replaced by PR 2.4
 import type { ToolCallContext, ToolCallResult, ToolDefinition } from './types.js';
 
 export abstract class BaseMCPServer {

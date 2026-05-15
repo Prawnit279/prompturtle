@@ -53,3 +53,10 @@ export const db = baseClient.$extends({
 });
 
 export type Db = typeof db;
+
+/**
+ * Raw PrismaClient (no RLS extension).
+ * Used by the cost tracker, which handles tenant scoping via WHERE clauses
+ * and should not trigger nested transactions from the RLS extension.
+ */
+export { baseClient as prisma };

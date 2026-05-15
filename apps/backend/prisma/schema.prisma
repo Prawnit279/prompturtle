@@ -84,9 +84,10 @@ model ToolCall {
   model_used  String
   input_tokens  Int
   output_tokens Int
-  cost_usd    Decimal  @db.Decimal(12, 6)
-  latency_ms  Int
-  created_at  DateTime @default(now())
+  cost_usd      Decimal  @db.Decimal(12, 6)
+  latency_ms    Int
+  success       Boolean  @default(true)
+  created_at    DateTime @default(now())
 
   @@index([tenant_id, created_at])
   @@map("tool_calls")
