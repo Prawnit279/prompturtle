@@ -12,8 +12,9 @@ import type { BaseMCPServer } from './BaseMCPServer.js';
  * value = live server instance
  */
 const servers = new Map<string, BaseMCPServer | null>([
-  ['bol-processor', null], // filled by PR 3.1
-  ['carrier-rates', null], // filled by PR 3.2
+  ['bol-processor',  null], // filled by PR 3.1
+  ['carrier-rates',  null], // filled by PR 3.2
+  ['hts-classifier', null], // filled by PR 4.1b
 ]);
 
 /** Register a concrete server. Throws if the slot is not pre-reserved. */
