@@ -1,7 +1,5 @@
-import dotenv from 'dotenv';
-
-dotenv.config();
-
+// dotenv is pre-loaded via `tsx -r dotenv/config` in the seed:hts npm script,
+// so DATABASE_URL is already in process.env before PrismaClient initialises.
 import logger from '../lib/logger.js';
 import { ingestHtsCodes, validateEmbeddingDimensions } from '../data/hts-ingest.js';
 

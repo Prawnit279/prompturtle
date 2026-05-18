@@ -4,7 +4,13 @@ import { prisma } from '../lib/db.js';
 import logger from '../lib/logger.js';
 import { HTS_SEED_DATA, type HtsSeedRecord } from './hts-seed-data.js';
 
-const openai = new OpenAI();
+// Lazy singleton — defer construction until first call so dotenv.config() has
+// already run in the entry point (seed-hts.ts or index.ts) before OPENAI_API_KEY is read.
+let _openai: OpenAI | undefined;
+function getOpenAI(): OpenAI {
+  if (!_openai) _openai = new OpenAI();
+  return _openai;
+}
 
 const EMBEDDING_MODEL = 'text-embedding-3-small';
 const EMBEDDING_DIMS  = 1536;
@@ -180,7 +186,7 @@ async function processBatch(
 }
 
 async function generateEmbedding(text: string): Promise<number[]> {
-  const response = await openai.embeddings.create({
+  const response = await getOpenAI().embeddings.create({
     model:      EMBEDDING_MODEL,
     input:      text,
     dimensions: EMBEDDING_DIMS,
@@ -191,7 +197,7 @@ async function generateEmbedding(text: string): Promise<number[]> {
 }
 
 async function generateEmbeddings(texts: string[]): Promise<number[][]> {
-  const response = await openai.embeddings.create({
+  const response = await getOpenAI().embeddings.create({
     model:      EMBEDDING_MODEL,
     input:      texts,
     dimensions: EMBEDDING_DIMS,
