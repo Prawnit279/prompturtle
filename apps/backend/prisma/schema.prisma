@@ -28,6 +28,22 @@ enum AuditAction {
   TOOL_CALL
   AUTH_EVENT
   GUARDRAIL_VIOLATION
+  APPROVAL_REQUESTED
+  APPROVAL_DECIDED
+}
+
+enum ApprovalStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  ESCALATED
+  EXPIRED
+}
+
+enum ApprovalTrigger {
+  HIGH_SHIPMENT_COST
+  LOW_HTS_CONFIDENCE
+  CARRIER_CHANGE_ON_PO
 }
 
 /// Phase 2 stubs DO NOT REMOVE
@@ -50,13 +66,14 @@ model Tenant {
   updated_at         DateTime    @updatedAt
 
   // Relations
-  api_keys        ApiKey[]
-  tool_calls      ToolCall[]
-  audit_events    AuditEvent[]
-  guardrail_rules GuardrailRule[]
-  billing_usage   BillingUsage[]
-  embeddings      EmbeddingStore[]
-  users           User[]
+  api_keys          ApiKey[]
+  tool_calls        ToolCall[]
+  audit_events      AuditEvent[]
+  guardrail_rules   GuardrailRule[]
+  billing_usage     BillingUsage[]
+  embeddings        EmbeddingStore[]
+  users             User[]
+  approval_requests ApprovalRequest[]
 
   @@map("tenants")
 }
@@ -179,6 +196,40 @@ model User {
 
   @@index([tenant_id])
   @@map("users")
+}
+
+model ApprovalRequest {
+  id            String          @id @default(uuid()) @db.Uuid
+  tenant_id     String          @db.Uuid
+  tenant        Tenant          @relation(fields: [tenant_id], references: [id], onDelete: Cascade)
+  trigger       ApprovalTrigger
+  status        ApprovalStatus  @default(PENDING)
+  /// Flexible JSON payload: shipment cost, HTS confidence, etc.
+  context       Json
+  /// ISO-8601 timestamp after which this request auto-expires (optional)
+  expires_at    DateTime?
+  created_at    DateTime        @default(now())
+  updated_at    DateTime        @updatedAt
+
+  decisions ApprovalDecision[]
+
+  @@index([tenant_id, status])
+  @@index([tenant_id, created_at])
+  @@map("approval_requests")
+}
+
+model ApprovalDecision {
+  id          String          @id @default(uuid()) @db.Uuid
+  request_id  String          @db.Uuid
+  request     ApprovalRequest @relation(fields: [request_id], references: [id], onDelete: Cascade)
+  /// Clerk user-id of the approver
+  decided_by  String
+  decision    ApprovalStatus
+  note        String?
+  decided_at  DateTime        @default(now())
+
+  @@index([request_id])
+  @@map("approval_decisions")
 }
 
 model ProcessedWebhook {

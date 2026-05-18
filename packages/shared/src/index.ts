@@ -9,3 +9,4 @@ export * from './types/mcp';
 export * from './types/api';
 export * from './types/billing';
 export * from './types/audit';
+export * from './types/approval';
