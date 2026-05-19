@@ -11,7 +11,9 @@ import { requireTenant } from './middleware/requireTenant.js';
 import { withTenantContext } from './middleware/withTenantContext.js';
 import { BolProcessorMCP } from './mcp/servers/BolProcessorMCP.js';
 import { CarrierRatesMCP } from './mcp/servers/CarrierRatesMCP.js';
+import { CarbonTrackingMCP } from './mcp/servers/CarbonTrackingMCP.js';
 import { HtsClassifierMCP } from './mcp/servers/HtsClassifierMCP.js';
+import { SupplierRiskMCP } from './mcp/servers/SupplierRiskMCP.js';
 import { GuardrailViolationError } from './mcp/types.js';
 import { registerServer } from './mcp/registry.js';
 
@@ -70,6 +72,8 @@ app.get('/api/health', (_req, res) => {
 registerServer(new BolProcessorMCP());
 registerServer(new CarrierRatesMCP());
 registerServer(new HtsClassifierMCP());
+registerServer(new CarbonTrackingMCP());
+registerServer(new SupplierRiskMCP());
 
 // ---- Protected router ----
 // All feature routes must mount onto this router — enforces auth + tenant context.

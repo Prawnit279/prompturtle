@@ -43,3 +43,11 @@ export class GuardrailViolationError extends Error {
 // TierLimitExceededError lives in lib/cost-tracker.ts (authoritative, with limitType/current/max).
 // Import it from there — not from this file.
 // Re-exported via mcp/index.ts for convenience.
+
+/** Thrown by stub MCP servers for features not yet implemented */
+export class NotImplementedError extends Error {
+  constructor(message = 'This feature is not available in the current plan. See roadmap.') {
+    super(message);
+    this.name = 'NotImplementedError';
+  }
+}
