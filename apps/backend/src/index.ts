@@ -9,6 +9,7 @@ import logger from './lib/logger.js';
 import { auth } from './middleware/auth.js';
 import { requireTenant } from './middleware/requireTenant.js';
 import { withTenantContext } from './middleware/withTenantContext.js';
+import docsRouter from './routes/docs.js';
 import { BolProcessorMCP } from './mcp/servers/BolProcessorMCP.js';
 import { CarrierRatesMCP } from './mcp/servers/CarrierRatesMCP.js';
 import { CarbonTrackingMCP } from './mcp/servers/CarbonTrackingMCP.js';
@@ -59,6 +60,8 @@ app.use((req: Request, res: Response, next: NextFunction) => {
 });
 
 // ---- Public routes ----
+app.use('/api/docs', docsRouter);
+
 app.get('/api/health', (_req, res) => {
   res.json({
     status: 'ok',
