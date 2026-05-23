@@ -40,6 +40,15 @@ vi.mock('../../data/hts-ingest.js', () => ({
   searchHtsCodes: vi.fn().mockResolvedValue([]),
 }));
 
+// Suppress stripe.ts module-level env check (billing routes now imported via app.ts)
+vi.mock('../../lib/stripe.js', () => ({
+  stripe: {
+    customers:     { create: vi.fn() },
+    checkout:      { sessions: { create: vi.fn() } },
+    billingPortal: { sessions: { create: vi.fn() } },
+  },
+}));
+
 // Mock Clerk — test token resolves to tenant-test / user-test
 vi.mock('@clerk/clerk-sdk-node', () => ({
   createClerkClient: vi.fn(() => ({
@@ -55,6 +64,10 @@ vi.mock('@clerk/clerk-sdk-node', () => ({
 // Mock Prisma — controlled responses per test
 vi.mock('../../lib/db.js', () => ({
   prisma: {
+    tenant: {
+      findUnique: vi.fn().mockResolvedValue(null),
+      update:     vi.fn().mockResolvedValue({}),
+    },
     apiKey: {
       findMany:   vi.fn().mockResolvedValue([]),
       findFirst:  vi.fn().mockResolvedValue(null),
@@ -69,7 +82,7 @@ vi.mock('../../lib/db.js', () => ({
   },
   db: {
     apiKey: {
-      findMany:   vi.fn().mockResolvedValue([]),
+      findMany: vi.fn().mockResolvedValue([]),
     },
   },
 }));

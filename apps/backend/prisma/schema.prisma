@@ -61,8 +61,12 @@ model Tenant {
   name               String
   tier               TenantTier  @default(STARTER)
   api_key_hash       String?
-  stripe_customer_id String?
-  created_at         DateTime    @default(now())
+  // Stripe billing — PR 5.2
+  stripe_customer_id     String?
+  stripe_subscription_id String?
+  stripe_price_id        String?
+  subscription_status    String?  @default("inactive")
+  created_at             DateTime @default(now())
   updated_at         DateTime    @updatedAt
 
   // Relations
@@ -82,13 +86,18 @@ model ApiKey {
   id           String    @id @default(uuid()) @db.Uuid
   tenant_id    String    @db.Uuid
   tenant       Tenant    @relation(fields: [tenant_id], references: [id], onDelete: Cascade)
-  key_hash     String
+  /// First 12 chars of raw key — safe to display in dashboard
+  prefix       String
+  /// SHA-256 of raw key — used for authentication; raw key never stored
+  key_hash     String    @unique
   name         String
+  revoked_at   DateTime?
   last_used_at DateTime?
-  is_active    Boolean   @default(true)
   created_at   DateTime  @default(now())
+  updated_at   DateTime  @updatedAt
 
   @@index([tenant_id])
+  @@index([key_hash])
   @@map("api_keys")
 }
 

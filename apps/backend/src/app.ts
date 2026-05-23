@@ -12,6 +12,7 @@ import logger from './lib/logger.js';
 import { auth } from './middleware/auth.js';
 import { requireTenant } from './middleware/requireTenant.js';
 import { withTenantContext } from './middleware/withTenantContext.js';
+import billingRouter from './routes/billing.js';
 import docsRouter from './routes/docs.js';
 import keysRouter from './routes/keys.js';
 import logsRouter from './routes/logs.js';
@@ -56,7 +57,7 @@ app.use('/api/docs', docsRouter);
 app.get('/api/health', (_req, res) => {
   res.json({
     status: 'ok',
-    service: 'prompturtle-api',
+    service: 'progue-api',
     version: '0.1.0',
     timestamp: new Date().toISOString(),
   });
@@ -76,9 +77,10 @@ protectedRouter.use(requireTenant);
 protectedRouter.use(withTenantContext);
 
 // Dashboard API routes (all require auth via protectedRouter middleware)
-protectedRouter.use('/keys',  keysRouter);
-protectedRouter.use('/logs',  logsRouter);
-protectedRouter.use('/usage', usageRouter);
+protectedRouter.use('/billing', billingRouter);
+protectedRouter.use('/keys',    keysRouter);
+protectedRouter.use('/logs',    logsRouter);
+protectedRouter.use('/usage',   usageRouter);
 
 app.use('/api', protectedRouter);
 
