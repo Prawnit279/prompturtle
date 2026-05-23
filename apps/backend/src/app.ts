@@ -14,6 +14,7 @@ import { requireTenant } from './middleware/requireTenant.js';
 import { withTenantContext } from './middleware/withTenantContext.js';
 import billingRouter from './routes/billing.js';
 import docsRouter from './routes/docs.js';
+import webhookRouter from './routes/webhooks.js';
 import keysRouter from './routes/keys.js';
 import logsRouter from './routes/logs.js';
 import usageRouter from './routes/usage.js';
@@ -33,6 +34,11 @@ app.use(cors({
   origin: process.env.FRONTEND_URL,
   credentials: true,
 }));
+
+// Stripe webhook — raw body MUST be registered before express.json().
+// Stripe signature verification requires the unparsed Buffer; express.json() would break it.
+app.use('/api/webhooks/stripe', express.raw({ type: 'application/json' }), webhookRouter);
+
 app.use(express.json());
 
 // HTTP-level rate limiting — fires before auth, protects unauthenticated floods (M-4)

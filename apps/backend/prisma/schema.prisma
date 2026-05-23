@@ -243,6 +243,7 @@ model ApprovalDecision {
 
 model ProcessedWebhook {
   stripe_event_id String   @id
+  event_type      String
   processed_at    DateTime @default(now())
 
   @@map("processed_webhooks")
