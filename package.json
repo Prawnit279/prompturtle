@@ -12,21 +12,18 @@
     "test": "turbo test",
     "typecheck": "turbo typecheck",
     "lint": "turbo lint",
-    "lint:fix": "turbo lint -- --fix",
-    "format": "prettier --write \"**/*.{ts,tsx,js,mjs,json,md,css}\" --ignore-path .prettierignore",
-    "format:check": "prettier --check \"**/*.{ts,tsx,js,mjs,json,md,css}\" --ignore-path .prettierignore",
     "deploy:backend": "turbo deploy --filter=backend",
-    "deploy:frontend": "turbo deploy --filter=frontend"
+    "deploy:frontend": "turbo deploy --filter=frontend",
+    "e2e": "playwright test",
+    "e2e:ui": "playwright test --ui",
+    "e2e:report": "playwright show-report e2e/playwright-report"
   },
   "devDependencies": {
-    "@prompturtle/eslint-config": "*",
-    "eslint": "^9.13.0",
-    "prettier": "^3.3.3",
+    "@playwright/test": "^1.60.0",
     "turbo": "^2.0.0",
     "typescript": "^5.5.0"
   },
   "engines": {
     "node": ">=20.0.0"
-  },
-  "packageManager": "npm@10.9.4"
+  }
 }
