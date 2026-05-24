@@ -29,11 +29,44 @@ import { registerServer } from './mcp/registry.js';
 
 const app = express();
 
-// ---- Global middleware ----
-app.use(helmet());
+// ---- Security headers ----
+app.use(helmet({
+  contentSecurityPolicy: {
+    directives: {
+      defaultSrc:  ["'self'"],
+      scriptSrc:   ["'self'"],
+      styleSrc:    ["'self'", "'unsafe-inline'"],
+      imgSrc:      ["'self'", 'data:'],
+      connectSrc:  ["'self'"],
+      fontSrc:     ["'self'"],
+      objectSrc:   ["'none'"],
+      mediaSrc:    ["'self'"],
+      frameSrc:    ["'none'"],
+    },
+  },
+  // Clerk dashboard embeds require this to be disabled
+  crossOriginEmbedderPolicy: false,
+}));
+
+// ---- CORS — locked to FRONTEND_URL in production ----
+const allowedOrigins: string[] =
+  process.env.NODE_ENV === 'production'
+    ? [process.env.FRONTEND_URL ?? '']
+    : (
+        ['http://localhost:5173', 'http://localhost:3000', process.env.FRONTEND_URL ?? '']
+          .filter(Boolean)
+      );
+
 app.use(cors({
-  origin: process.env.FRONTEND_URL,
-  credentials: true,
+  origin: (origin, callback) => {
+    // Allow server-to-server requests (Stripe/Clerk webhooks have no Origin header)
+    if (!origin) { callback(null, true); return; }
+    if (allowedOrigins.includes(origin)) { callback(null, true); return; }
+    callback(new Error(`CORS: origin ${origin} not allowed`));
+  },
+  methods:        ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
+  credentials:    true,
 }));
 
 // Webhook routes — raw body MUST be registered before express.json().
@@ -94,7 +127,8 @@ app.use('/api', protectedRouter);
 
 // ---- Global error handler (H-5) ----
 // MUST be last app.use() — 4-argument signature tells Express it's an error handler.
-app.use((err: unknown, _req: Request, res: Response, _next: NextFunction): void => {
+// Stack traces are never sent to clients; message is shown only in non-production.
+app.use((err: unknown, req: Request, res: Response, _next: NextFunction): void => {
   if (err instanceof GuardrailViolationError) {
     res.status(429).json({ error: 'guardrail_violation', rule: err.rule });
     return;
@@ -103,8 +137,15 @@ app.use((err: unknown, _req: Request, res: Response, _next: NextFunction): void 
     res.status(429).json({ error: 'rate_limit_exceeded' });
     return;
   }
-  logger.error({ err }, 'unhandled_error');
-  res.status(500).json({ error: 'internal_error' });
+
+  const statusCode = (err as { statusCode?: number }).statusCode ?? 500;
+  logger.error({ err, path: req.path, method: req.method }, 'unhandled_error');
+
+  res.status(statusCode).json({
+    error: process.env.NODE_ENV === 'production'
+      ? 'Internal server error'
+      : (err instanceof Error ? err.message : 'Internal server error'),
+  });
 });
 
 export default app;
