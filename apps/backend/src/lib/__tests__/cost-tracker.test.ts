@@ -20,6 +20,11 @@ vi.mock('../db.js', () => ({
   TenantContextMissingError: class TenantContextMissingError extends Error {},
 }));
 
+// ---- Usage monitor mock — suppress email side-effect from fire-and-forget ----
+vi.mock('../usage-monitor.js', () => ({
+  checkAndWarnUsage: vi.fn().mockResolvedValue(undefined),
+}));
+
 // ---- Logger mock (default export) ----
 vi.mock('../logger.js', () => ({
   default: {

@@ -14,6 +14,7 @@ import { requireTenant } from './middleware/requireTenant.js';
 import { withTenantContext } from './middleware/withTenantContext.js';
 import billingRouter from './routes/billing.js';
 import docsRouter from './routes/docs.js';
+import clerkWebhookRouter from './routes/clerk-webhooks.js';
 import webhookRouter from './routes/webhooks.js';
 import keysRouter from './routes/keys.js';
 import logsRouter from './routes/logs.js';
@@ -35,9 +36,10 @@ app.use(cors({
   credentials: true,
 }));
 
-// Stripe webhook — raw body MUST be registered before express.json().
-// Stripe signature verification requires the unparsed Buffer; express.json() would break it.
+// Webhook routes — raw body MUST be registered before express.json().
+// Signature verification (Stripe + Clerk/svix) requires the unparsed Buffer.
 app.use('/api/webhooks/stripe', express.raw({ type: 'application/json' }), webhookRouter);
+app.use('/api/webhooks/clerk',  express.raw({ type: 'application/json' }), clerkWebhookRouter);
 
 app.use(express.json());
 

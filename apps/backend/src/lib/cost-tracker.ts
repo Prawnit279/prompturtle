@@ -1,7 +1,8 @@
 import { TIER_LIMITS, TenantTier } from '@prompturtle/shared';
 
-import logger from './logger.js';
 import { prisma } from './db.js';
+import logger from './logger.js';
+import { checkAndWarnUsage } from './usage-monitor.js';
 
 // ---- Model pricing (per 1K tokens) ----
 
@@ -156,6 +157,9 @@ export async function trackedCall<T>(
     costUsd,
     success: true,
   });
+
+  // Fire-and-forget usage warning — do not await; must not block or throw in request path
+  void checkAndWarnUsage(tenantId, tier, callsThisMonth + 1);
 
   logger.info(
     {

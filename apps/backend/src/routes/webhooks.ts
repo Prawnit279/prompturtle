@@ -1,10 +1,12 @@
 import express, { type Request, type Response } from 'express';
 import type Stripe from 'stripe';
 
+import { TenantTier, TIER_LIMITS } from '@prompturtle/shared';
+
 import { prisma } from '../lib/db.js';
+import { sendBillingConfirmationEmail } from '../lib/email.js';
 import logger from '../lib/logger.js';
 import { stripe } from '../lib/stripe.js';
-import { TenantTier } from '@prompturtle/shared';
 
 const router = express.Router();
 
@@ -107,6 +109,24 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session): Promis
       tier,
     },
   });
+
+  // Send billing confirmation — non-fatal if it fails
+  try {
+    const tenantRecord = await prisma.tenant.findUnique({
+      where:  { id: tenantId },
+      select: { email: true, name: true },
+    });
+    if (tenantRecord?.email) {
+      await sendBillingConfirmationEmail({
+        to:         tenantRecord.email,
+        tenantName: tenantRecord.name,
+        tier,
+        callLimit:  TIER_LIMITS[tier]?.callsPerMonth ?? 1_000,
+      });
+    }
+  } catch (err) {
+    logger.error({ err, tenantId }, 'webhook.billing_email_failed');
+  }
 
   logger.info({ tenantId, tier }, 'webhook.checkout_completed');
 }
