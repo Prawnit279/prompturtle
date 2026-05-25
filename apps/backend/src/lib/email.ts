@@ -48,7 +48,8 @@ async function send(opts: {
     }
 
     logger.info({ id: data?.id, to: opts.to, subject: opts.subject }, 'email.sent');
-    return { success: true, id: data?.id };
+    // Spread id only when defined — required by exactOptionalPropertyTypes
+    return data?.id ? { success: true, id: data.id } : { success: true };
   } catch (err) {
     logger.error({ err, to: opts.to }, 'email.send_threw');
     return { success: false, error: String(err) };
