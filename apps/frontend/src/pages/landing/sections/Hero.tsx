@@ -1,6 +1,19 @@
 import { useEffect, useState } from 'react';
 import { hero, heroAnimation } from '../../../content/landing';
 
+function usePrefersReducedMotion(): boolean {
+  const [prefersReduced, setPrefersReduced] = useState(
+    () => window.matchMedia('(prefers-reduced-motion: reduce)').matches,
+  );
+  useEffect(() => {
+    const mq = window.matchMedia('(prefers-reduced-motion: reduce)');
+    const handler = (e: MediaQueryListEvent) => setPrefersReduced(e.matches);
+    mq.addEventListener('change', handler);
+    return () => mq.removeEventListener('change', handler);
+  }, []);
+  return prefersReduced;
+}
+
 type AnimPhase = 'typing' | 'tracing' | 'resetting';
 
 interface AnimState {
@@ -24,7 +37,7 @@ const STATUS_COLOR: Record<string, string> = {
 };
 
 export default function Hero() {
-  const prefersReduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const prefersReduced = usePrefersReducedMotion();
   const [anim, setAnim] = useState<AnimState>({ chars: 0, traces: 0, phase: 'typing' });
 
   useEffect(() => {
@@ -88,10 +101,8 @@ export default function Hero() {
             </a>
             <a
               href={hero.ctas.secondary.href}
-              className="inline-flex items-center px-5 py-2.5 rounded-full text-sm font-medium border transition-colors"
-              style={{ borderColor: 'var(--border-strong)', color: 'var(--text-2)' }}
-              onMouseEnter={e => { (e.currentTarget as HTMLAnchorElement).style.color = 'var(--text)'; }}
-              onMouseLeave={e => { (e.currentTarget as HTMLAnchorElement).style.color = 'var(--text-2)'; }}
+              className="inline-flex items-center px-5 py-2.5 rounded-full text-sm font-medium border transition-colors text-text-2 hover:text-text"
+              style={{ borderColor: 'var(--border-strong)' }}
             >
               {hero.ctas.secondary.label}
             </a>

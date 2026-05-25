@@ -25,8 +25,8 @@ const SECTIONS = [
 export default function LandingPage() {
   return (
     <LandingLayout>
-      {SECTIONS.map((Section, i) => (
-        <Section key={i} />
+      {SECTIONS.map((Section) => (
+        <Section key={Section.name} />
       ))}
     </LandingLayout>
   );

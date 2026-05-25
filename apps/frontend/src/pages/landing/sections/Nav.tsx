@@ -31,10 +31,7 @@ export default function Nav() {
             <Link
               key={link.to}
               to={link.to}
-              className="text-sm no-underline transition-colors"
-              style={{ color: 'var(--text-2)' }}
-              onMouseEnter={e => { (e.currentTarget as HTMLAnchorElement).style.color = 'var(--text)'; }}
-              onMouseLeave={e => { (e.currentTarget as HTMLAnchorElement).style.color = 'var(--text-2)'; }}
+              className="text-sm no-underline transition-colors text-text-2 hover:text-text"
             >
               {link.label}
             </Link>

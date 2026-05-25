@@ -26,23 +26,17 @@ export default function Footer() {
               <ul className="space-y-2">
                 {col.links.map(link => (
                   <li key={link.label}>
-                    {'href' in link && link.href.startsWith('mailto') ? (
+                    {link.href.startsWith('mailto:') ? (
                       <a
                         href={link.href}
-                        className="text-xs no-underline transition-colors"
-                        style={{ color: 'var(--text-3)' }}
-                        onMouseEnter={e => { (e.currentTarget as HTMLAnchorElement).style.color = 'var(--text-2)'; }}
-                        onMouseLeave={e => { (e.currentTarget as HTMLAnchorElement).style.color = 'var(--text-3)'; }}
+                        className="text-xs no-underline transition-colors text-text-3 hover:text-text-2"
                       >
                         {link.label}
                       </a>
                     ) : (
                       <Link
                         to={link.href}
-                        className="text-xs no-underline transition-colors"
-                        style={{ color: 'var(--text-3)' }}
-                        onMouseEnter={e => { (e.currentTarget as HTMLAnchorElement).style.color = 'var(--text-2)'; }}
-                        onMouseLeave={e => { (e.currentTarget as HTMLAnchorElement).style.color = 'var(--text-3)'; }}
+                        className="text-xs no-underline transition-colors text-text-3 hover:text-text-2"
                       >
                         {link.label}
                       </Link>
@@ -76,10 +70,7 @@ export default function Footer() {
                 href={s.href}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="no-underline transition-colors"
-                style={{ color: 'var(--text-3)' }}
-                onMouseEnter={e => { (e.currentTarget as HTMLAnchorElement).style.color = 'var(--text-2)'; }}
-                onMouseLeave={e => { (e.currentTarget as HTMLAnchorElement).style.color = 'var(--text-3)'; }}
+                className="no-underline transition-colors text-text-3 hover:text-text-2"
               >
                 {s.label}
               </a>

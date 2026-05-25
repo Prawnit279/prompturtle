@@ -1,6 +1,8 @@
 import { useScrollReveal } from '../../../hooks/useScrollReveal';
 import { integration } from '../../../content/landing';
 
+const MARKER_ID = 'integration-flow-arrow';
+
 export default function Integration() {
   const { ref, visible } = useScrollReveal();
   const steps = integration.flowSteps;
@@ -21,6 +23,7 @@ export default function Integration() {
 
         {/* Architecture flow — inline SVG, flat, hairline */}
         <div className="mb-12 overflow-x-auto">
+          {/* Unique marker ID scoped to this component to avoid SVG global ID collisions */}
           <svg
             viewBox={`0 0 ${steps.length * 140 - 20} 56`}
             className="w-full max-w-2xl"
@@ -60,14 +63,14 @@ export default function Integration() {
                       d={`M ${x + 122} 26 L ${x + 138} 26`}
                       stroke="var(--text-3)"
                       strokeWidth={1}
-                      markerEnd="url(#arrowhead)"
+                      markerEnd={`url(#${MARKER_ID})`}
                     />
                   )}
                 </g>
               );
             })}
             <defs>
-              <marker id="arrowhead" markerWidth={6} markerHeight={6} refX={3} refY={3} orient="auto">
+              <marker id={MARKER_ID} markerWidth={6} markerHeight={6} refX={3} refY={3} orient="auto">
                 <path d="M0,0 L0,6 L6,3 Z" fill="var(--text-3)" />
               </marker>
             </defs>

@@ -24,10 +24,8 @@ export default function FinalCTA() {
           </a>
           <a
             href={finalCta.ctas.secondary.href}
-            className="inline-flex items-center px-6 py-3 rounded-full text-sm font-medium border transition-colors"
-            style={{ borderColor: 'var(--border-strong)', color: 'var(--text-2)' }}
-            onMouseEnter={e => { (e.currentTarget as HTMLAnchorElement).style.color = 'var(--text)'; }}
-            onMouseLeave={e => { (e.currentTarget as HTMLAnchorElement).style.color = 'var(--text-2)'; }}
+            className="inline-flex items-center px-6 py-3 rounded-full text-sm font-medium border transition-colors text-text-2 hover:text-text"
+            style={{ borderColor: 'var(--border-strong)' }}
           >
             {finalCta.ctas.secondary.label}
           </a>
