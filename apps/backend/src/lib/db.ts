@@ -30,7 +30,18 @@ const baseClient = new PrismaClient();
 export const db = baseClient.$extends({
   query: {
     $allModels: {
-      async $allOperations({ args, query }) {
+      // `model` and `operation` are the camelCase Prisma client accessor names,
+      // e.g. model='toolCall', operation='findMany'.
+      // We intentionally do NOT use `query(args)` here because that callback is
+      // bound to baseClient's connection pool and would execute on a *different*
+      // connection than the SET LOCAL issued on `tx` — causing the RLS variable
+      // to be silently missing for the actual query (C-3 fix).
+      //
+      // Instead we re-issue the operation directly on `tx` (the transaction client),
+      // which guarantees SET LOCAL and the query share the same connection.
+      // `tx` is the raw PrismaClient (no extensions) so this does NOT recurse.
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      async $allOperations({ model, operation, args, query: _query }) {
         const tenantId = getTenantId();
 
         if (!tenantId) {
@@ -41,11 +52,11 @@ export const db = baseClient.$extends({
           throw new Error(`Invalid tenantId format: ${tenantId}`);
         }
 
-        // Wrap in interactive transaction so SET LOCAL and query share one connection
         return baseClient.$transaction(async (tx) => {
           await tx.$executeRawUnsafe(`SET LOCAL app.current_tenant_id = '${tenantId}'`);
-          // Re-run the original query args through the transaction client
-          return query(args);
+          // Run through tx so SET LOCAL and query share the same DB connection.
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          return (tx as any)[model][operation](args) as Promise<unknown>;
         });
       },
     },
@@ -53,3 +64,10 @@ export const db = baseClient.$extends({
 });
 
 export type Db = typeof db;
+
+/**
+ * Raw PrismaClient (no RLS extension).
+ * Used by the cost tracker, which handles tenant scoping via WHERE clauses
+ * and should not trigger nested transactions from the RLS extension.
+ */
+export { baseClient as prisma };

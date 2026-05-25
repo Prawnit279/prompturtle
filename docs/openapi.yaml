@@ -1,0 +1,499 @@
+openapi: 3.0.3
+info:
+  title: Progue.ai API
+  version: 0.6.0
+  description: |
+    Supply chain context engineering platform API.
+
+    **Implementation status:**
+    - Dashboard API routes (`/api/keys`, `/api/logs`, `/api/usage`, `/api/billing/*`) — fully implemented
+    - MCP routes (`/api/mcp/*`) — documented; HTTP route handlers planned for next sprint
+
+servers:
+  - url: https://api.progue.ai
+    description: Production
+  - url: http://localhost:3000
+    description: Development (default port)
+
+security:
+  - BearerAuth: []
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: Progue API Key (ptk_...)
+
+  schemas:
+    Error:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: string
+          example: "Missing or invalid API key"
+
+    ApiKey:
+      type: object
+      properties:
+        id:         { type: string, format: uuid }
+        name:       { type: string }
+        prefix:     { type: string, example: "ptk_abcdef" }
+        createdAt:  { type: string, format: date-time }
+        lastUsedAt: { type: string, format: date-time, nullable: true }
+
+    ToolCallLog:
+      type: object
+      properties:
+        id:           { type: string, format: uuid }
+        mcpServer:    { type: string }
+        toolName:     { type: string }
+        model:        { type: string }
+        inputTokens:  { type: integer }
+        outputTokens: { type: integer }
+        costUsd:      { type: number, format: float }
+        durationMs:   { type: integer }
+        status:       { type: string, enum: [SUCCESS, ERROR] }
+        createdAt:    { type: string, format: date-time }
+
+    BillingStatus:
+      type: object
+      properties:
+        tier:               { type: string, enum: [STARTER, GROWTH, ENTERPRISE] }
+        subscriptionStatus: { type: string }
+        stripeCustomerId:   { type: string, nullable: true }
+        stripePriceId:      { type: string, nullable: true }
+        callsThisMonth:     { type: integer }
+        callLimit:          { type: integer }
+
+    BolParseRequest:
+      type: object
+      required: [rawBol]
+      properties:
+        rawBol: { type: string, description: "Raw BOL document text" }
+
+    BolParseResponse:
+      type: object
+      properties:
+        shipper:       { $ref: '#/components/schemas/Party' }
+        consignee:     { $ref: '#/components/schemas/Party' }
+        carrier:       { type: string }
+        proNumber:     { type: string }
+        weight:        { type: number }
+        freightClass:  { type: number }
+        declaredValue: { type: number }
+        commodity:     { type: string }
+
+    BolValidateResponse:
+      type: object
+      properties:
+        valid:            { type: boolean }
+        guardrailsFired:  { type: array, items: { type: string } }
+        errors:           { type: array, items: { type: string } }
+        warnings:         { type: array, items: { type: string } }
+
+    Party:
+      type: object
+      properties:
+        name:    { type: string }
+        address: { type: string }
+
+    CarrierRatesRequest:
+      type: object
+      required: [origin, destination, weight, freightClass]
+      properties:
+        origin:       { $ref: '#/components/schemas/Location' }
+        destination:  { $ref: '#/components/schemas/Location' }
+        weight:       { type: number, description: "Weight in lbs" }
+        freightClass: { type: number }
+
+    CarrierRatesResponse:
+      type: object
+      properties:
+        rates:
+          type: array
+          items:
+            type: object
+            properties:
+              carrier:     { type: string }
+              baseRate:    { type: number }
+              transitDays: { type: integer }
+              score:       { type: number, format: float }
+        recommended:      { type: string }
+        guardrailsFired:  { type: array, items: { type: string } }
+
+    Location:
+      type: object
+      properties:
+        zip:   { type: string }
+        city:  { type: string }
+        state: { type: string }
+
+    HtsClassifyRequest:
+      type: object
+      required: [commodity]
+      properties:
+        commodity:          { type: string }
+        originCountry:      { type: string, description: "ISO 3166-1 alpha-2" }
+        destinationCountry: { type: string, description: "ISO 3166-1 alpha-2" }
+
+    HtsClassifyResponse:
+      type: object
+      properties:
+        hsCode:         { type: string }
+        description:    { type: string }
+        tariffRate:     { type: number }
+        cbamApplicable: { type: boolean }
+        notes:          { type: string }
+
+    ApprovalRequest:
+      type: object
+      required: [decisionId, reason]
+      properties:
+        decisionId:   { type: string }
+        reason:       { type: string, enum: [high_cost_approval, low_hts_confidence, carrier_change_on_po] }
+        details:      { type: object, additionalProperties: true }
+        approverRole: { type: string }
+
+    ApprovalResponse:
+      type: object
+      properties:
+        approvalId:       { type: string }
+        status:           { type: string, enum: [pending, approved, rejected] }
+        notificationSent: { type: boolean }
+
+paths:
+  /api/health:
+    get:
+      summary: Health check
+      security: []
+      responses:
+        '200':
+          description: Service healthy
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:    { type: string, example: ok }
+                  service:   { type: string, example: progue-api }
+                  version:   { type: string }
+                  timestamp: { type: string, format: date-time }
+
+  /api/keys:
+    get:
+      summary: List active API keys
+      responses:
+        '200':
+          description: Active keys for the authenticated tenant
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  keys: { type: array, items: { $ref: '#/components/schemas/ApiKey' } }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+    post:
+      summary: Create API key (raw value returned once)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name]
+              properties:
+                name: { type: string }
+      responses:
+        '201':
+          description: Key created — raw value shown once
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  key:
+                    allOf:
+                      - { $ref: '#/components/schemas/ApiKey' }
+                      - type: object
+                        properties:
+                          raw: { type: string, description: "Full key — store immediately, never retrievable again" }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+
+  /api/keys/{id}:
+    delete:
+      summary: Revoke an API key
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '204': { description: Key revoked }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /api/logs:
+    get:
+      summary: Paginated tool call logs
+      parameters:
+        - in: query
+          name: page
+          schema: { type: integer, default: 1 }
+        - in: query
+          name: limit
+          schema: { type: integer, default: 25, maximum: 100 }
+        - in: query
+          name: server
+          schema: { type: string }
+          description: Filter by MCP server name
+      responses:
+        '200':
+          description: Paginated logs
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  calls: { type: array, items: { $ref: '#/components/schemas/ToolCallLog' } }
+                  total: { type: integer }
+                  page:  { type: integer }
+                  limit: { type: integer }
+                  pages: { type: integer }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+
+  /api/usage:
+    get:
+      summary: Aggregated usage by MCP server
+      parameters:
+        - in: query
+          name: days
+          schema: { type: integer, default: 30, maximum: 90 }
+      responses:
+        '200':
+          description: Usage summary
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  days:         { type: integer }
+                  totalCostUsd: { type: number }
+                  totalCalls:   { type: integer }
+                  byServer:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        server:       { type: string }
+                        calls:        { type: integer }
+                        costUsd:      { type: number }
+                        inputTokens:  { type: integer }
+                        outputTokens: { type: integer }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+
+  /api/billing/status:
+    get:
+      summary: Current billing tier and usage
+      responses:
+        '200':
+          description: Billing status
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/BillingStatus' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+
+  /api/billing/checkout:
+    post:
+      summary: Create a Stripe Checkout session
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [priceId]
+              properties:
+                priceId: { type: string }
+      responses:
+        '200':
+          description: Checkout URL
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  url: { type: string, format: uri }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+
+  /api/billing/portal:
+    post:
+      summary: Open Stripe Customer Portal
+      responses:
+        '200':
+          description: Portal URL
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  url: { type: string, format: uri }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+
+  /api/mcp/bol/parse:
+    post:
+      summary: Parse raw BOL text into structured JSON
+      description: "⚠️ HTTP route not yet implemented — MCP server exists, REST handler planned."
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/BolParseRequest' }
+      responses:
+        '200':
+          description: Structured BOL data
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/BolParseResponse' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+
+  /api/mcp/bol/validate:
+    post:
+      summary: Validate a structured BOL against guardrails
+      description: "⚠️ HTTP route not yet implemented — MCP server exists, REST handler planned."
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                bolData: { $ref: '#/components/schemas/BolParseResponse' }
+      responses:
+        '200':
+          description: Validation result
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/BolValidateResponse' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+
+  /api/mcp/carrier/rates:
+    post:
+      summary: Compare carrier rates for a shipment
+      description: "⚠️ HTTP route not yet implemented — MCP server exists, REST handler planned."
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CarrierRatesRequest' }
+      responses:
+        '200':
+          description: Carrier rate comparison
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CarrierRatesResponse' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+
+  /api/mcp/hts/classify:
+    post:
+      summary: Classify a commodity to its HTS/HS code
+      description: "⚠️ HTTP route not yet implemented — MCP server exists, REST handler planned."
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/HtsClassifyRequest' }
+      responses:
+        '200':
+          description: HTS classification
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/HtsClassifyResponse' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+
+  /api/mcp/approval/request:
+    post:
+      summary: Request approval for a guardrail-flagged decision
+      description: "⚠️ HTTP route not yet implemented — approval workflow lib exists, REST handler planned."
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ApprovalRequest' }
+      responses:
+        '200':
+          description: Approval request created
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApprovalResponse' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+
+  /api/mcp/audit/history:
+    get:
+      summary: Decision history for the tenant
+      description: "⚠️ HTTP route not yet implemented — audit lib exists, REST handler planned."
+      parameters:
+        - in: query
+          name: limit
+          schema: { type: integer, default: 50 }
+        - in: query
+          name: offset
+          schema: { type: integer, default: 0 }
+        - in: query
+          name: module
+          schema: { type: string }
+      responses:
+        '200':
+          description: Audit history
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  decisions:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id:              { type: string }
+                        module:          { type: string }
+                        action:          { type: string }
+                        guardrailsFired: { type: array, items: { type: string } }
+                        accepted:        { type: boolean }
+                        latencyMs:       { type: integer }
+                        createdAt:       { type: string, format: date-time }
+                  total:  { type: integer }
+                  limit:  { type: integer }
+                  offset: { type: integer }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+
+components:
+  responses:
+    Unauthorized:
+      description: Missing or invalid API key
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+    BadRequest:
+      description: Invalid request body
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+    RateLimited:
+      description: Rate limit or guardrail violation
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }

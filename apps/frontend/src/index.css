@@ -1,0 +1,51 @@
+/* Geist Sans — variable font (files copied to public/fonts/ for production build) */
+@font-face {
+  font-family: 'Geist';
+  src: url('/fonts/Geist-Variable.woff2') format('woff2');
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* Geist Mono — variable font */
+@font-face {
+  font-family: 'Geist Mono';
+  src: url('/fonts/GeistMono-Variable.woff2') format('woff2');
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --bg: #060B1A;
+  --surface: #0C1326;
+  --surface-raised: #111A33;
+  --border: rgba(150, 170, 210, 0.10);
+  --border-strong: rgba(150, 170, 210, 0.16);
+  --text: #EAE8F0;
+  --text-2: #9590B0;
+  --text-3: #5E5A7A;
+  --brand: #5B3A82;
+  --success: #5BA88C;
+  --warning: #C9A86A;
+  --error: #C36B7A;
+  --info: #3E6FA0;
+  --json-str: #7B9BC9;
+
+  /* Font aliases for inline style use */
+  --sans: 'Geist', -apple-system, system-ui, sans-serif;
+  --mono: 'Geist Mono', ui-monospace, monospace;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+html, body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--sans);
+  -webkit-font-smoothing: antialiased;
+  min-height: 100vh;
+}

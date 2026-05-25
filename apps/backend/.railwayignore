@@ -1,0 +1,8 @@
+node_modules/
+src/
+tests/
+scripts/
+*.test.ts
+*.spec.ts
+.env
+.env.*

@@ -1,7 +1,7 @@
 import { createClerkClient } from '@clerk/clerk-sdk-node';
 import type { NextFunction, Request, Response } from 'express';
 
-import logger from '../lib/logger';
+import logger from '../lib/logger.js';
 
 const clerkClient = createClerkClient({
   secretKey: process.env.CLERK_SECRET_KEY!,
