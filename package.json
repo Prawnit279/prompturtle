@@ -16,10 +16,12 @@
     "deploy:frontend": "turbo deploy --filter=frontend",
     "e2e": "playwright test",
     "e2e:ui": "playwright test --ui",
-    "e2e:report": "playwright show-report e2e/playwright-report"
+    "e2e:report": "playwright show-report e2e/playwright-report",
+    "load-test": "npx tsx scripts/load-test.ts"
   },
   "devDependencies": {
     "@playwright/test": "^1.60.0",
+    "autocannon": "^8.0.0",
     "turbo": "^2.0.0",
     "typescript": "^5.5.0"
   },
