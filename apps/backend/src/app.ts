@@ -100,6 +100,7 @@ app.get('/api/health', (_req, res) => {
     status: 'ok',
     service: 'progue-api',
     version: '0.1.0',
+    uptime: Math.floor(process.uptime()),
     timestamp: new Date().toISOString(),
   });
 });
