@@ -7,22 +7,22 @@ import Overview             from './pages/Overview';
 import ApiKeys              from './pages/ApiKeys';
 import CallLogs             from './pages/CallLogs';
 import Billing              from './pages/Billing';
-import LandingPage          from './pages/landing/LandingPage';
+import Landing              from './pages/Landing';
 import PricingPage          from './pages/PricingPage';
 import DocsPage             from './pages/DocsPage';
-import SolutionsPage        from './pages/SolutionsPage';
-import AboutPage            from './pages/AboutPage';
+import Solutions            from './pages/Solutions';
+import About                from './pages/About';
 
 export default function App() {
   return (
     <BrowserRouter>
       <Routes>
         {/* Public marketing routes */}
-        <Route path="/"          element={<LandingPage />}   />
+        <Route path="/"          element={<Landing />}       />
         <Route path="/pricing"   element={<PricingPage />}   />
         <Route path="/docs"      element={<DocsPage />}      />
-        <Route path="/solutions" element={<SolutionsPage />} />
-        <Route path="/about"     element={<AboutPage />}     />
+        <Route path="/solutions" element={<Solutions />}     />
+        <Route path="/about"     element={<About />}         />
 
         {/* Auth + dashboard — ClerkProvider only active here */}
         <Route
