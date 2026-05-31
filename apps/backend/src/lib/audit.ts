@@ -1,3 +1,5 @@
+import type { InputJsonValue, JsonValue } from '@prisma/client/runtime/library';
+
 import type { AuditAction } from '@prompturtle/shared';
 
 import { prisma } from './db.js';
@@ -41,7 +43,7 @@ export async function writeAuditEvent(event: {
         entity_type: event.entityType,
         entity_id:   event.entityId,
         // Prisma Json field requires explicit cast from Record<string, unknown>
-        payload:     event.payload as Parameters<typeof prisma.auditEvent.create>[0]['data']['payload'],
+        payload:     event.payload as InputJsonValue,
       },
     });
   } catch (err) {
@@ -75,7 +77,8 @@ export async function queryAuditLog(
     take: filters.limit ?? 100,
   });
 
-  return events.map((e) => ({
+  type AuditEventRow = { id: string; tenant_id: string; action: string; entity_type: string; entity_id: string; payload: JsonValue; created_at: Date };
+  return events.map((e: AuditEventRow) => ({
     id:         e.id,
     tenantId:   e.tenant_id,
     action:     e.action,

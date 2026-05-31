@@ -1,3 +1,5 @@
+import type { Decimal } from '@prisma/client/runtime/library';
+
 import { Router, type Request, type Response } from 'express';
 
 import { prisma } from '../lib/db.js';
@@ -17,14 +19,15 @@ router.get('/', async (req: Request, res: Response): Promise<void> => {
     _count: { id: true },
   });
 
-  const totalCostUsd = rows.reduce((acc, r) => acc + Number(r._sum.cost_usd ?? 0), 0);
-  const totalCalls   = rows.reduce((acc, r) => acc + r._count.id, 0);
+  type UsageGroupRow = { mcp_server: string; _sum: { cost_usd: Decimal | null; input_tokens: number | null; output_tokens: number | null }; _count: { id: number } };
+  const totalCostUsd = rows.reduce((acc: number, r: UsageGroupRow) => acc + Number(r._sum.cost_usd ?? 0), 0);
+  const totalCalls   = rows.reduce((acc: number, r: UsageGroupRow) => acc + r._count.id, 0);
 
   res.json({
     days,
     totalCostUsd,
     totalCalls,
-    byServer: rows.map((r) => ({
+    byServer: rows.map((r: UsageGroupRow) => ({
       server:       r.mcp_server,
       calls:        r._count.id,
       costUsd:      Number(r._sum.cost_usd      ?? 0),

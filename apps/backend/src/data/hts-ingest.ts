@@ -95,7 +95,7 @@ export async function searchHtsCodes(
     LIMIT ${topK}
   `;
 
-  return results.map((r) => ({
+  return results.map((r: { code: string; description: string; chapter: string; duty_rate: string; similarity: number }) => ({
     code:        r.code,
     description: r.description,
     chapter:     r.chapter,

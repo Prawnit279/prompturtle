@@ -15,8 +15,9 @@ router.get('/', async (req: Request, res: Response): Promise<void> => {
     select:  { id: true, name: true, prefix: true, created_at: true, last_used_at: true },
     orderBy: { created_at: 'desc' },
   });
+  type ApiKeySelectRow = { id: string; name: string; prefix: string; created_at: Date; last_used_at: Date | null };
   res.json({
-    keys: keys.map((k) => ({
+    keys: keys.map((k: ApiKeySelectRow) => ({
       id:         k.id,
       name:       k.name,
       prefix:     k.prefix,

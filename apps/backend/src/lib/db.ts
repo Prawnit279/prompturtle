@@ -41,7 +41,7 @@ export const db = baseClient.$extends({
       // which guarantees SET LOCAL and the query share the same connection.
       // `tx` is the raw PrismaClient (no extensions) so this does NOT recurse.
       // eslint-disable-next-line @typescript-eslint/no-unused-vars
-      async $allOperations({ model, operation, args, query: _query }) {
+      async $allOperations({ model, operation, args, query: _query }: { model: string; operation: string; args: Record<string, unknown>; query: (args: Record<string, unknown>) => Promise<unknown> }) {
         const tenantId = getTenantId();
 
         if (!tenantId) {
@@ -52,7 +52,7 @@ export const db = baseClient.$extends({
           throw new Error(`Invalid tenantId format: ${tenantId}`);
         }
 
-        return baseClient.$transaction(async (tx) => {
+        return baseClient.$transaction(async (tx: Omit<PrismaClient, '$connect' | '$disconnect' | '$on' | '$transaction' | '$use' | '$extends'>) => {
           await tx.$executeRawUnsafe(`SET LOCAL app.current_tenant_id = '${tenantId}'`);
           // Run through tx so SET LOCAL and query share the same DB connection.
           // eslint-disable-next-line @typescript-eslint/no-explicit-any

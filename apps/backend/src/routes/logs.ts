@@ -1,3 +1,5 @@
+import type { Decimal } from '@prisma/client/runtime/library';
+
 import { Router, type Request, type Response } from 'express';
 
 import { prisma } from '../lib/db.js';
@@ -38,8 +40,9 @@ router.get('/', async (req: Request, res: Response): Promise<void> => {
     }),
   ]);
 
+  type ToolCallSelectRow = { id: string; mcp_server: string; tool_name: string; model_used: string; input_tokens: number; output_tokens: number; cost_usd: Decimal; latency_ms: number; success: boolean; created_at: Date };
   res.json({
-    calls: calls.map((c) => ({
+    calls: calls.map((c: ToolCallSelectRow) => ({
       id:           c.id,
       mcpServer:    c.mcp_server,
       toolName:     c.tool_name,

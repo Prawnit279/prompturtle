@@ -1,3 +1,5 @@
+import type { InputJsonValue } from '@prisma/client/runtime/library';
+
 import { AuditAction, ApprovalStatus, ApprovalTrigger } from '@prompturtle/shared';
 
 import { prisma } from './db.js';
@@ -92,7 +94,7 @@ export async function checkAndRequestApproval(params: {
       tenant_id:  tenantId,
       trigger,
       status:     ApprovalStatus.PENDING,
-      context:    context as Parameters<typeof prisma.approvalRequest.create>[0]['data']['context'],
+      context:    context as InputJsonValue,
       expires_at: expiresAt ?? null,
     },
   });
