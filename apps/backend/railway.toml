@@ -1,7 +1,6 @@
 [build]
 builder = "nixpacks"
-# Build shared first (so @prompturtle/shared/dist/ exists before tsc compiles backend)
-buildCommand = "cd ../.. && npx turbo run build --filter=@prompturtle/backend..."
+buildCommand = "npm run build --workspace=packages/shared && npm run build --workspace=apps/backend"
 
 [deploy]
 startCommand = "node dist/index.js"
