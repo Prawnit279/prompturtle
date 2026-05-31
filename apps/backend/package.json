@@ -12,7 +12,8 @@
     "check:no-raw-anthropic": "! grep -rn '\\.messages\\.create\\|\\.messages\\.stream' src/ --include='*.ts' | grep -v '__tests__' | grep -v '\\.test\\.ts' | grep -v 'cost-tracker.ts' | grep -v 'intentRefiner.ts' | grep -v 'mcp/servers/'",
     "seed:hts": "tsx -r dotenv/config src/scripts/seed-hts.ts",
     "db:generate": "prisma generate",
-    "db:push": "prisma db push"
+    "db:push": "prisma db push",
+    "prebuild": "npm --prefix=../../packages/shared run build"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.24.0",
