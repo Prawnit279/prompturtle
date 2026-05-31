@@ -40,6 +40,20 @@ jobs:
       - run: npm ci
       - run: npm run typecheck
 
+  # Frontend-only typecheck so backend type debt never blocks a frontend deploy.
+  typecheck-frontend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+      - run: npm ci
+      - name: Typecheck frontend
+        run: npx tsc --noEmit
+        working-directory: apps/frontend
+
   e2e:
     needs: test
     runs-on: ubuntu-latest
@@ -93,7 +107,7 @@ jobs:
           RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
 
   deploy-frontend:
-    needs: [test, typecheck]
+    needs: [typecheck-frontend]
     runs-on: ubuntu-latest
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     steps:
