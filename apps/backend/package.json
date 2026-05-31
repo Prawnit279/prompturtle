@@ -13,7 +13,8 @@
     "seed:hts": "tsx -r dotenv/config src/scripts/seed-hts.ts",
     "db:generate": "prisma generate",
     "db:push": "prisma db push",
-    "prebuild": "npm --prefix=../../packages/shared run build"
+    "prebuild": "npm --prefix=../../packages/shared run build && prisma generate",
+    "pretest": "prisma generate"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.24.0",
