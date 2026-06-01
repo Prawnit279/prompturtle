@@ -17,8 +17,15 @@ export default function App() {
   return (
     <BrowserRouter>
       <Routes>
-        {/* Public marketing routes */}
-        <Route path="/"          element={<Landing />}       />
+        {/* Public marketing routes — redirect to dashboard on app subdomain */}
+        <Route
+          path="/"
+          element={
+            window.location.hostname === 'app.progue.ai'
+              ? <Navigate to="/dashboard" replace />
+              : <Landing />
+          }
+        />
         <Route path="/pricing"   element={<PricingPage />}   />
         <Route path="/docs"      element={<DocsPage />}      />
         <Route path="/solutions" element={<Solutions />}     />
