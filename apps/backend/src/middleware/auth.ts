@@ -17,6 +17,13 @@ const clerkClient = createClerkClient({
  * NOTE: tenantId is the Clerk org_id, stored as tenants.id in our DB.
  */
 export async function auth(req: Request, res: Response, next: NextFunction): Promise<void> {
+  // OPTIONS preflight requests carry no Authorization header; skip auth entirely
+  // so CORS can respond with 204 before any auth logic runs.
+  if (req.method === 'OPTIONS') {
+    next();
+    return;
+  }
+
   const authHeader = req.headers.authorization;
 
   if (!authHeader?.startsWith('Bearer ')) {

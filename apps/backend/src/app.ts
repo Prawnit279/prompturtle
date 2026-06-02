@@ -64,7 +64,9 @@ app.use(cors({
     // Allow server-to-server requests (Stripe/Clerk webhooks have no Origin header)
     if (!origin) { callback(null, true); return; }
     if (allowedOrigins.includes(origin)) { callback(null, true); return; }
-    callback(new Error(`CORS: origin ${origin} not allowed`));
+    // Reject with null/false — letting the error propagate causes a 500;
+    // returning false tells the browser the origin is blocked (proper 403-ish behavior).
+    callback(null, false);
   },
   methods:        ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization'],
