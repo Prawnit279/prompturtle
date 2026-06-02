@@ -48,12 +48,14 @@ app.use(helmet({
   crossOriginEmbedderPolicy: false,
 }));
 
-// ---- CORS — locked to FRONTEND_URL in production ----
+// ---- CORS — locked to FRONTEND_URL + APP_URL in production ----
+// FRONTEND_URL = https://progue.ai (marketing site)
+// APP_URL      = https://app.progue.ai (dashboard) — set in Railway env vars
 const allowedOrigins: string[] =
   process.env.NODE_ENV === 'production'
-    ? [process.env.FRONTEND_URL ?? '']
+    ? [process.env.FRONTEND_URL ?? '', process.env.APP_URL ?? ''].filter(Boolean)
     : (
-        ['http://localhost:5173', 'http://localhost:3000', process.env.FRONTEND_URL ?? '']
+        ['http://localhost:5173', 'http://localhost:3000', process.env.FRONTEND_URL ?? '', process.env.APP_URL ?? '']
           .filter(Boolean)
       );
 
