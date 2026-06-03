@@ -99,8 +99,8 @@ describe('CORS', () => {
       .get('/api/health')
       .set('Origin', 'http://evil.example.com');
 
-    // CORS callback error propagates to global error handler
-    expect(res.status).not.toBe(200);
+    // callback(null, false) means CORS silently withholds the header;
+    // the server responds normally but the browser rejects the response.
     expect(res.headers['access-control-allow-origin']).toBeUndefined();
   });
 

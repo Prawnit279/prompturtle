@@ -1,8 +1,10 @@
 import express, { type Request, type Response } from 'express';
 import { Webhook } from 'svix';
 
+import { prisma } from '../lib/db.js';
 import logger from '../lib/logger.js';
 import { sendWelcomeEmail } from '../lib/email.js';
+import { TenantTier } from '@prompturtle/shared';
 
 const router = express.Router();
 
@@ -43,7 +45,56 @@ router.post('/', async (req: Request, res: Response): Promise<void> => {
     return;
   }
 
-  if (event.type === 'organization.created' || event.type === 'user.created') {
+  // ── organization.created ────────────────────────────────────────────────
+  // Creates the Tenant row that all other tables FK into.
+  // NOTE: Tenant.id is @db.Uuid in the Prisma schema but auth.ts sets
+  // res.locals.tenantId = org_id directly. If PostgreSQL rejects the
+  // org_xxx format, a migration is needed to change tenants.id to TEXT.
+  if (event.type === 'organization.created') {
+    const data = event.data;
+    const orgId   = data['id']   as string;
+    const orgName = data['name'] as string;
+
+    try {
+      await prisma.tenant.upsert({
+        where:  { id: orgId },
+        update: {}, // already exists — no-op
+        create: {
+          id:   orgId,
+          name: orgName || 'Unnamed Organization',
+          tier: TenantTier.STARTER,
+        },
+      });
+      logger.info({ orgId, orgName }, 'clerk-webhook.tenant_created');
+    } catch (err) {
+      logger.error({ err, orgId }, 'clerk-webhook.tenant_create_failed');
+      // Return 500 so Clerk retries — this is fatal; without the tenant
+      // row every subsequent API call will fail with tenant_required.
+      res.status(500).json({ error: 'tenant_create_failed' });
+      return;
+    }
+  }
+
+  // ── organization.deleted ─────────────────────────────────────────────────
+  // Cascade deletes all child rows (api_keys, tool_calls, etc.).
+  if (event.type === 'organization.deleted') {
+    const data  = event.data;
+    const orgId = data['id'] as string;
+
+    try {
+      await prisma.tenant.delete({ where: { id: orgId } });
+      logger.info({ orgId }, 'clerk-webhook.tenant_deleted');
+    } catch (err) {
+      // P2025 = record not found — already gone, treat as success
+      const code = (err as { code?: string }).code;
+      if (code !== 'P2025') {
+        logger.error({ err, orgId }, 'clerk-webhook.tenant_delete_failed');
+      }
+    }
+  }
+
+  // ── user.created ─────────────────────────────────────────────────────────
+  if (event.type === 'user.created' || event.type === 'organization.created') {
     // Non-fatal — email failure must not cause Clerk to retry indefinitely
     try {
       const data  = event.data;

@@ -79,7 +79,7 @@ vi.mock('@clerk/clerk-sdk-node', () => ({
 vi.mock('../../lib/db.js', () => ({
   prisma: {
     processedWebhook: { findUnique: vi.fn().mockResolvedValue(null), create: vi.fn().mockResolvedValue({}) },
-    tenant:   { findUnique: vi.fn().mockResolvedValue(null), update: vi.fn().mockResolvedValue({}) },
+    tenant:   { findUnique: vi.fn().mockResolvedValue(null), update: vi.fn().mockResolvedValue({}), upsert: vi.fn().mockResolvedValue({}), delete: vi.fn().mockResolvedValue({}) },
     apiKey:   { findMany: vi.fn().mockResolvedValue([]), findFirst: vi.fn().mockResolvedValue(null), create: vi.fn(), update: vi.fn().mockResolvedValue({}) },
     toolCall: { count: vi.fn().mockResolvedValue(0), findMany: vi.fn().mockResolvedValue([]), groupBy: vi.fn().mockResolvedValue([]) },
   },
