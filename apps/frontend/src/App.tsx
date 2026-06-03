@@ -1,4 +1,4 @@
-import { SignIn, SignedIn, SignedOut, RedirectToSignIn } from '@clerk/clerk-react';
+import { SignIn, SignedIn, SignedOut, RedirectToSignIn, ClerkLoading } from '@clerk/clerk-react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 
 import ClerkProtectedLayout from './components/ClerkProtectedLayout';
@@ -45,6 +45,11 @@ export default function App() {
           path="/dashboard"
           element={
             <ClerkProtectedLayout>
+              <ClerkLoading>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh', color: 'var(--text-2)', fontFamily: 'var(--sans)', fontSize: '13px' }}>
+                  Loading…
+                </div>
+              </ClerkLoading>
               <SignedIn><DashboardLayout /></SignedIn>
               <SignedOut><RedirectToSignIn /></SignedOut>
             </ClerkProtectedLayout>
