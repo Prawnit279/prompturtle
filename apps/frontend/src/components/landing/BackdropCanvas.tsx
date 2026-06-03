@@ -291,14 +291,14 @@ export default function BackdropCanvas(): React.ReactElement {
       ctx.fillStyle = bg; ctx.fillRect(0, 0, W, H);
 
       const dp = nodes.map(n => { const d = env.push(n.x, n.y); return [n.x + d.dx * PUSH, n.y + d.dy * PUSH]; });
-      ctx.strokeStyle = rgba(150, 196, 220, 0.07 * MI); ctx.lineWidth = 1; ctx.beginPath();
+      ctx.strokeStyle = rgba(150, 196, 220, 0.16 * MI); ctx.lineWidth = 1; ctx.beginPath();
       for (const [i, j] of edges) { ctx.moveTo(dp[i][0], dp[i][1]); ctx.lineTo(dp[j][0], dp[j][1]); }
       ctx.stroke();
 
       for (let i = 0; i < nodes.length; i++) {
         const tw = 0.6 + 0.4 * Math.sin(t * 0.7 + nodes[i].ph);
-        ctx.fillStyle = rgba(96, 202, 226, Math.min(0.95, (0.22 + tw * 0.14) * MI));
-        ctx.beginPath(); ctx.arc(dp[i][0], dp[i][1], 1.3, 0, 6.2832); ctx.fill();
+        ctx.fillStyle = rgba(96, 202, 226, Math.min(0.95, (0.44 + tw * 0.24) * MI));
+        ctx.beginPath(); ctx.arc(dp[i][0], dp[i][1], 1.5, 0, 6.2832); ctx.fill();
       }
       for (const n of loneDots) {
         const tw = 0.5 + 0.5 * Math.sin(t * 0.6 + n.ph);
