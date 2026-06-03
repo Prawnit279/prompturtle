@@ -18,32 +18,37 @@ const NAV = [
   { to: '/dashboard/billing', label: 'Billing',  icon: IconCreditCard  },
 ] as const;
 
-/**
- * Automatically activates the user's first organization if no org is currently
- * active in the Clerk session. Without an active org, getToken() returns a
- * user-level JWT with no org_id, and every API call returns tenant_required.
- */
-function OrgAutoActivator() {
+export default function DashboardLayout() {
+  const { pathname } = useLocation();
   const { orgId } = useAuth();
-  const { userMemberships, setActive } = useOrganizationList({ userMemberships: { infinite: true } });
+  const { userMemberships, setActive, isLoaded } = useOrganizationList({
+    userMemberships: { infinite: true },
+  });
 
+  // Auto-activate the first org when no org is currently in the session.
+  // We do this BEFORE rendering child routes so their useEffect API calls
+  // always fire with an org-scoped JWT (org_id present → no tenant_required).
   useEffect(() => {
-    if (orgId) return; // already active — nothing to do
+    if (orgId) return;
+    if (!isLoaded) return;
     const firstOrg = userMemberships?.data?.[0]?.organization;
     if (firstOrg && setActive) {
       void setActive({ organization: firstOrg.id });
     }
-  }, [orgId, userMemberships, setActive]);
+  }, [orgId, userMemberships, isLoaded, setActive]);
 
-  return null;
-}
-
-export default function DashboardLayout() {
-  const { pathname } = useLocation();
+  // Block child routes until the org session is confirmed.
+  // Prevents API calls firing before org_id is in the JWT.
+  if (!orgId) {
+    return (
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh', color: 'var(--text-2)', fontFamily: 'var(--sans)', fontSize: '13px' }}>
+        Loading workspace…
+      </div>
+    );
+  }
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
-      <OrgAutoActivator />
 
       {/* ── Topbar ── */}
       <header
