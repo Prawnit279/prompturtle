@@ -57,7 +57,7 @@ enum Phase2Feature {
 // ---------------------------------------------------------------------------
 
 model Tenant {
-  id                 String      @id @default(uuid()) @db.Uuid
+  id                 String      @id  // Clerk org_id (e.g. "org_xxx") — not a UUID
   name               String
   tier               TenantTier  @default(STARTER)
   api_key_hash       String?
@@ -86,7 +86,7 @@ model Tenant {
 
 model ApiKey {
   id           String    @id @default(uuid()) @db.Uuid
-  tenant_id    String    @db.Uuid
+  tenant_id    String
   tenant       Tenant    @relation(fields: [tenant_id], references: [id], onDelete: Cascade)
   /// First 12 chars of raw key — safe to display in dashboard
   prefix       String
@@ -105,7 +105,7 @@ model ApiKey {
 
 model ToolCall {
   id          String   @id @default(uuid()) @db.Uuid
-  tenant_id   String   @db.Uuid
+  tenant_id   String
   tenant      Tenant   @relation(fields: [tenant_id], references: [id], onDelete: Cascade)
   mcp_server  String
   tool_name   String
@@ -123,7 +123,7 @@ model ToolCall {
 
 model AuditEvent {
   id          String      @id @default(uuid()) @db.Uuid
-  tenant_id   String      @db.Uuid
+  tenant_id   String
   tenant      Tenant      @relation(fields: [tenant_id], references: [id], onDelete: Cascade)
   action      AuditAction
   entity_type String
@@ -137,7 +137,7 @@ model AuditEvent {
 
 model GuardrailRule {
   id         String   @id @default(uuid()) @db.Uuid
-  tenant_id  String   @db.Uuid
+  tenant_id  String
   tenant     Tenant   @relation(fields: [tenant_id], references: [id], onDelete: Cascade)
   rule_type  String
   config     Json
@@ -151,7 +151,7 @@ model GuardrailRule {
 
 model BillingUsage {
   id               String   @id @default(uuid()) @db.Uuid
-  tenant_id        String   @db.Uuid
+  tenant_id        String
   tenant           Tenant   @relation(fields: [tenant_id], references: [id], onDelete: Cascade)
   period_start     DateTime
   period_end       DateTime
@@ -166,7 +166,7 @@ model BillingUsage {
 model EmbeddingStore {
   id         String                      @id @default(uuid()) @db.Uuid
   // null = global shared data (e.g. HTS codes); non-null = tenant-scoped RAG content
-  tenant_id  String?                     @db.Uuid
+  tenant_id  String?
   tenant     Tenant?                     @relation(fields: [tenant_id], references: [id], onDelete: Cascade)
   // Logical category: 'hts-codes', 'bol-templates', etc.
   namespace  String                      @default("general")
@@ -201,7 +201,7 @@ model HtsCode {
 model User {
   id         String   @id @default(uuid()) @db.Uuid
   clerk_id   String   @unique
-  tenant_id  String   @db.Uuid
+  tenant_id  String
   tenant     Tenant   @relation(fields: [tenant_id], references: [id], onDelete: Cascade)
   created_at DateTime @default(now())
 
@@ -211,7 +211,7 @@ model User {
 
 model ApprovalRequest {
   id            String          @id @default(uuid()) @db.Uuid
-  tenant_id     String          @db.Uuid
+  tenant_id     String
   tenant        Tenant          @relation(fields: [tenant_id], references: [id], onDelete: Cascade)
   trigger       ApprovalTrigger
   status        ApprovalStatus  @default(PENDING)
