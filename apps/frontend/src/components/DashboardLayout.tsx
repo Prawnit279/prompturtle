@@ -1,5 +1,6 @@
+import { useEffect } from 'react';
 import { Link, useLocation, Outlet } from 'react-router-dom';
-import { OrganizationSwitcher, UserButton } from '@clerk/clerk-react';
+import { OrganizationSwitcher, UserButton, useAuth, useOrganizationList } from '@clerk/clerk-react';
 import {
   IconChartBar,
   IconKey,
@@ -17,11 +18,32 @@ const NAV = [
   { to: '/dashboard/billing', label: 'Billing',  icon: IconCreditCard  },
 ] as const;
 
+/**
+ * Automatically activates the user's first organization if no org is currently
+ * active in the Clerk session. Without an active org, getToken() returns a
+ * user-level JWT with no org_id, and every API call returns tenant_required.
+ */
+function OrgAutoActivator() {
+  const { orgId } = useAuth();
+  const { userMemberships, setActive } = useOrganizationList({ userMemberships: { infinite: true } });
+
+  useEffect(() => {
+    if (orgId) return; // already active — nothing to do
+    const firstOrg = userMemberships?.data?.[0]?.organization;
+    if (firstOrg && setActive) {
+      void setActive({ organization: firstOrg.id });
+    }
+  }, [orgId, userMemberships, setActive]);
+
+  return null;
+}
+
 export default function DashboardLayout() {
   const { pathname } = useLocation();
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
+      <OrgAutoActivator />
 
       {/* ── Topbar ── */}
       <header
