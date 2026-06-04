@@ -77,6 +77,7 @@ vi.mock('../../lib/db.js', () => ({
     tenant: {
       findUnique: vi.fn(),
       update:     vi.fn().mockResolvedValue({}),
+      upsert:     vi.fn().mockResolvedValue({ id: 'tenant-test', name: 'Organization', tier: 'STARTER' }),
     },
     toolCall: {
       count: vi.fn().mockResolvedValue(0),

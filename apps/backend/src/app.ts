@@ -11,6 +11,7 @@ import { TierLimitExceededError } from './lib/cost-tracker.js';
 import logger from './lib/logger.js';
 import { auth } from './middleware/auth.js';
 import { requireTenant } from './middleware/requireTenant.js';
+import { ensureTenant } from './middleware/ensureTenant.js';
 import { withTenantContext } from './middleware/withTenantContext.js';
 import billingRouter from './routes/billing.js';
 import docsRouter from './routes/docs.js';
@@ -99,16 +100,6 @@ app.use((req: Request, res: Response, next: NextFunction) => {
 // ---- Public routes ----
 app.use('/api/docs', docsRouter);
 
-// Temporary diagnostic — returns JWT claims the backend actually received.
-// Remove after confirming org_id is present in production tokens.
-app.get('/api/whoami', (req: Request, res: Response) => {
-  res.json({
-    userId:   res.locals.userId   ?? null,
-    tenantId: res.locals.tenantId ?? null,
-    hasAuth:  !!req.headers.authorization,
-  });
-});
-
 app.get('/api/health', (_req, res) => {
   res.json({
     status: 'ok',
@@ -130,6 +121,11 @@ registerServer(new SupplierRiskMCP());
 // All feature routes must mount onto this router — enforces auth + tenant context.
 export const protectedRouter = express.Router();
 protectedRouter.use(requireTenant);
+// Self-heal: guarantee a Tenant row exists for the active org before any
+// route runs, so writes never fail on a missing FK (cached after first hit).
+protectedRouter.use((req: Request, res: Response, next: NextFunction) => {
+  ensureTenant(req, res, next).catch(next);
+});
 protectedRouter.use(withTenantContext);
 
 // Dashboard API routes (all require auth via protectedRouter middleware)

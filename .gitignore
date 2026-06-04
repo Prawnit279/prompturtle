@@ -39,3 +39,5 @@ apps/backend/prisma/migrations/
 
 # Uploads
 uploads/
+.vercel
+.env*

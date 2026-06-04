@@ -1,0 +1,1255 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>progue. — context infrastructure for supply chain AI</title>
+<script>
+  // Suppress benign Cloudflare email-decode.min.js noise (injected by the preview CDN, not our code).
+  (function(){
+    var orig = console.error.bind(console);
+    console.error = function(){
+      var first = arguments[0];
+      try {
+        if(first && typeof first === 'object' && first.stack && /email-decode/.test(first.stack)) return;
+        if(typeof first === 'string' && /email-decode/.test(first)) return;
+      } catch(e){}
+      orig.apply(console, arguments);
+    };
+    window.addEventListener('error', function(e){
+      if(e && e.filename && /email-decode/.test(e.filename)){
+        e.stopImmediatePropagation();
+        e.preventDefault();
+        return false;
+      }
+    }, true);
+  })();
+</script>
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#060B1A;
+    --surface:#0C1326;
+    --surface-2:#111A33;
+    --hair:rgba(150,170,210,0.10);
+    --hair-strong:rgba(150,170,210,0.16);
+    --text:#EAE8F0;
+    --text-2:#9590B0;
+    --text-3:#5E5A7A;
+    --sage:#5B3A82;
+    --sand:#C9A86A;
+    --rose:#C36B7A;
+    --mist:#9590B0;
+    --sans:'Geist', ui-sans-serif, system-ui, sans-serif;
+    --mono:'Geist Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+  }
+  html{scroll-behavior:smooth;}
+  html,body{background:var(--bg);color:var(--text);font-family:var(--sans);-webkit-font-smoothing:antialiased;}
+  body{font-weight:400;line-height:1.65;}
+  ::selection{background:rgba(91,58,130,.30);color:var(--text);}
+  .font-mono{font-family:var(--mono);}
+  .font-display{font-family:var(--sans);letter-spacing:-0.02em;font-weight:500;}
+  .text-text{color:var(--text);}
+  .text-text2{color:var(--text-2);}
+  .text-text3{color:var(--text-3);}
+  .bg-surface{background:var(--surface);}
+  .bg-surface2{background:var(--surface-2);}
+  .hair{border-color:var(--hair);}
+  .hair-b{border-bottom:1px solid var(--hair);}
+  .hair-t{border-top:1px solid var(--hair);}
+  .hair-l{border-left:1px solid var(--hair);}
+  .hair-r{border-right:1px solid var(--hair);}
+  .hair-all{border:1px solid var(--hair);}
+
+  /* Mono section labels */
+  .mlabel{font-family:var(--mono);font-size:11px;letter-spacing:0.14em;text-transform:uppercase;color:var(--text-2);}
+
+  /* Buttons */
+  .btn{display:inline-flex;align-items:center;gap:8px;height:44px;padding:0 22px;border-radius:999px;font-family:var(--sans);font-weight:500;font-size:14px;letter-spacing:-0.005em;transition:transform .25s ease, background-color .25s ease, border-color .25s ease, color .25s ease;will-change:transform;outline:none;}
+  .btn:focus-visible{box-shadow:0 0 0 2px var(--bg),0 0 0 3px var(--sage);}
+  .btn-primary{background:var(--sage);color:#ffffff;}
+  .btn-primary:hover{background:#4A2E6B;transform:scale(1.02);}
+  .btn-secondary{border:1px solid var(--hair-strong);color:var(--text);background:transparent;}
+  .btn-secondary:hover{border-color:rgba(255,255,255,.18);transform:scale(1.02);}
+
+  /* Pills / chips */
+  .chip{display:inline-flex;align-items:center;gap:8px;border:1px solid var(--hair);border-radius:999px;padding:6px 12px;font-family:var(--mono);font-size:11px;letter-spacing:.08em;color:var(--text-2);text-transform:uppercase;}
+
+  /* Hero display */
+  .hero-display{font-family:var(--sans);font-weight:500;letter-spacing:-0.025em;line-height:1.02;font-size:clamp(44px,7vw,92px);}
+  .section-h{font-family:var(--sans);font-weight:500;letter-spacing:-0.022em;line-height:1.05;font-size:clamp(30px,3.6vw,48px);}
+  .max-prose{max-width:65ch;}
+  .max-70{max-width:70ch;}
+
+  /* Reveal on scroll */
+  .reveal{opacity:0;transform:translateY(20px);transition:opacity .6s ease-out, transform .6s ease-out;}
+  .reveal.in{opacity:1;transform:none;}
+
+  /* Hero blur (cursor) */
+  .hero-blur{position:absolute;width:600px;height:600px;border-radius:50%;background:radial-gradient(closest-side, rgba(91,58,130,0.18), rgba(91,58,130,0));pointer-events:none;mix-blend-mode:screen;filter:blur(20px);opacity:0.6;transition:transform .35s ease-out;}
+
+  /* Hero scan line (one-shot) */
+  .scanline{position:absolute;left:0;right:0;height:1px;background:linear-gradient(90deg, transparent, rgba(91,58,130,.40), transparent);top:0;animation:scan 1300ms ease-out .35s 1 forwards;}
+  @keyframes scan{ 0%{transform:translateY(0);opacity:0;} 10%{opacity:1;} 100%{transform:translateY(560px);opacity:0;} }
+
+  /* Faint vignette / radial fade in hero */
+  .hero-vignette{background:radial-gradient(ellipse 80% 60% at 50% 0%, rgba(91,58,130,0.07), rgba(6,11,26,0) 60%);}
+
+  /* Sticky nav blur */
+  .nav-blur{background:rgba(6,11,26,0.76);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);}
+
+  /* Code block */
+  .code{font-family:var(--mono);font-size:12.5px;line-height:1.7;color:#C9C9C2;}
+  .code .kw{color:var(--sage);}
+  .code .str{color:var(--mist);}
+  .code .com{color:var(--text-3);}
+  .code .num{color:var(--sand);}
+  .code .fn{color:#E8E6E1;}
+
+  /* Accordion */
+  details.faq{border-bottom:1px solid var(--hair);}
+  details.faq[open]{background:linear-gradient(90deg, rgba(91,58,130,0.05), transparent 30%);}
+  details.faq summary{list-style:none;cursor:pointer;display:flex;gap:24px;align-items:flex-start;padding:24px 0;}
+  details.faq summary::-webkit-details-marker{display:none;}
+  details.faq[open] summary .chev{transform:rotate(45deg);color:var(--sage);}
+  .chev{transition:transform .35s ease, color .35s ease;color:var(--text-2);}
+  .faq-body{max-height:0;overflow:hidden;transition:max-height .4s ease;}
+  details.faq[open] .faq-body{max-height:400px;padding-bottom:24px;}
+
+  /* Focus rings */
+  a:focus-visible, button:focus-visible, summary:focus-visible{outline:2px solid var(--sage);outline-offset:3px;border-radius:6px;}
+
+  /* Left-accent for cards */
+  .accent-sage{box-shadow:inset 2px 0 0 var(--sage);}
+  .accent-sand{box-shadow:inset 2px 0 0 var(--sand);}
+  .accent-mist{box-shadow:inset 2px 0 0 var(--mist);}
+
+  /* Hairline check */
+  .check{width:16px;height:16px;border-radius:50%;border:1px solid var(--hair-strong);display:inline-flex;align-items:center;justify-content:center;flex:none;}
+  .check svg{width:8px;height:8px;color:var(--sage);}
+
+  /* Slow grid lines for diagrams */
+  .diagram-grid{background-image:
+    linear-gradient(to right, rgba(255,255,255,0.025) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(255,255,255,0.025) 1px, transparent 1px);
+    background-size:32px 32px;}
+
+  /* Subtle status dot */
+  .dot-sage{width:6px;height:6px;border-radius:50%;background:var(--sage);box-shadow:0 0 0 3px rgba(91,58,130,0.18);}
+  .dot-mist{width:6px;height:6px;border-radius:50%;border:1px solid var(--mist);}
+
+  /* Tier card */
+  .tier-card{background:var(--surface);border:1px solid var(--hair);border-radius:18px;padding:32px;display:flex;flex-direction:column;gap:20px;}
+  .tier-card.featured{background:var(--surface-2);}
+
+  /* nav link underline */
+  .nlink{position:relative;color:var(--text-2);transition:color .2s;}
+  .nlink:hover{color:var(--text);}
+  .nlink::after{content:"";position:absolute;left:0;bottom:-6px;width:0;height:1px;background:var(--sage);transition:width .25s ease;}
+  .nlink:hover::after{width:100%;}
+
+  /* table cell padding */
+  .gr-cell{padding:18px 20px;border-top:1px solid var(--hair);}
+
+  /* utility */
+  .ring-hair{box-shadow:inset 0 0 0 1px var(--hair);}
+
+  /* === Section label prefix block === */
+  .mlabel{display:inline-flex;align-items:center;gap:10px;}
+  .mlabel::before{content:"";display:inline-block;width:8px;height:8px;background:var(--label-color,var(--sage));flex:none;}
+  .mlabel .num{color:var(--text);}
+  .mlabel .sep{color:var(--text-3);margin:0 2px;}
+  .lbl-sage{--label-color:var(--sage);}
+  .lbl-sand{--label-color:var(--sand);}
+  .lbl-mist{--label-color:var(--mist);}
+  .lbl-rose{--label-color:var(--rose);}
+
+  /* === Pulsing operational dot === */
+  @keyframes gentlePulse {
+    0%,100%{opacity:.6;}
+    50%{opacity:1;}
+  }
+  .pulse-dot{animation:gentlePulse 2.2s ease-in-out infinite;}
+
+  /* === Faceted crystal === */
+  .crystal-wrap{position:relative;width:100%;aspect-ratio:1/1;max-width:520px;margin:0 auto;}
+  .crystal-blur{
+    position:absolute;inset:-60px;
+    background:radial-gradient(closest-side, rgba(91,58,130,0.14), rgba(91,58,130,0));
+    filter:blur(20px);pointer-events:none;
+    transition:transform .8s cubic-bezier(.2,.6,.2,1);
+  }
+  .crystal-spin{transform-origin:50% 50%;animation:cspin 60s linear infinite;will-change:transform;}
+  @keyframes cspin{to{transform:rotate(360deg);}}
+  .crystal-svg{display:block;width:100%;height:auto;overflow:visible;}
+  .facet{
+    opacity:0;
+    transform:scale(.65);
+    transform-origin:240px 240px;
+    transition:opacity .55s ease-out, transform .55s cubic-bezier(.2,.7,.2,1);
+  }
+  .crystal-revealed .facet{opacity:1;transform:none;}
+
+  /* === Ambient triangulation === */
+  .ambient-tri{position:absolute;inset:0;pointer-events:none;overflow:hidden;}
+  .ambient-tri svg{width:100%;height:100%;display:block;opacity:.55;}
+  .ambient-tri svg path{stroke:rgba(180,210,255,0.4);stroke-width:1;fill:none;}
+
+  /* === Founder note === */
+  .founder-rule{border-left:1px solid rgba(91,58,130,0.65);padding-left:28px;}
+  .founder-body{font-size:18px;line-height:1.7;color:var(--text);}
+  .founder-body p + p{margin-top:1em;}
+
+  /* === Dense code block (section 04) === */
+  .codeframe{background:#040810;border:1px solid var(--hair-strong);border-radius:14px;overflow:hidden;}
+  .codeframe .filename{
+    font-family:var(--mono);font-size:11px;letter-spacing:.14em;text-transform:uppercase;
+    color:var(--text-2);padding:14px 20px;border-bottom:1px solid var(--hair);
+    display:flex;align-items:center;justify-content:space-between;
+    background:rgba(180,210,255,0.02);
+  }
+  .codeframe pre{display:grid;grid-template-columns:48px 1fr;margin:0;padding:0;font-family:var(--mono);font-size:13.5px;line-height:1.8;}
+  .codeframe .ln{
+    color:rgba(168,184,197,0.55);text-align:right;padding:18px 14px;
+    background:rgba(180,210,255,0.03);border-right:1px solid var(--hair);
+    user-select:none;font-size:11.5px;
+  }
+  .codeframe .src{padding:18px 22px;white-space:pre;overflow-x:auto;color:#D6DEE8;}
+  .codeframe .src .kw{color:var(--sage);font-weight:500;}
+  .codeframe .src .str{color:var(--mist);}
+  .codeframe .src .com{color:var(--text-3);font-style:italic;}
+  .codeframe .src .num{color:var(--sand);}
+  .codeframe .src .fn{color:#E8E6E1;font-weight:500;}
+
+  /* === Guardrail row accents === */
+  .gr-row{position:relative;}
+  .gr-row::before{content:"";position:absolute;left:0;top:8px;bottom:8px;width:2px;background:var(--gr-color,var(--text-3));border-radius:2px;}
+  .gr-pass{--gr-color:var(--sage);}
+  .gr-warn{--gr-color:var(--sand);}
+  .gr-halt{--gr-color:var(--rose);}
+  .gr-reject{--gr-color:var(--mist);}
+  .scanlines-bg{
+    background-image: repeating-linear-gradient(
+      0deg,
+      rgba(180,210,255,0.05) 0px,
+      rgba(180,210,255,0.05) 1px,
+      transparent 1px,
+      transparent 6px);
+  }
+
+  /* sand pill for "most teams start here" tag */
+  .pill-sand{
+    background:rgba(217,197,160,0.10);
+    color:var(--sand);
+    border:1px solid rgba(217,197,160,0.32);
+  }
+</style>
+</head>
+<body class="min-h-screen">
+<!-- NAV -->
+<header class="fixed top-0 inset-x-0 z-50 nav-blur hair-b">
+  <div class="max-w-[1120px] mx-auto px-6 lg:px-8 h-16 flex items-center justify-between">
+    <a href="#top" class="flex items-center gap-1 group" aria-label="progue home">
+      <span class="font-display text-[17px] tracking-tight">progue</span>
+      <span class="font-mono text-[17px] text-[color:var(--sage)] -mt-1">.</span>
+    </a>
+    <nav class="hidden md:flex items-center gap-8 text-[13.5px]">
+      <a href="#platform" class="nlink">Solutions</a>
+      <a href="#docs" class="nlink">Docs</a>
+      <a href="#pricing" class="nlink">Pricing</a>
+      <a href="#cta-placeholder" class="nlink">About</a>
+    </nav>
+    <a href="#cta-placeholder" class="btn btn-primary text-[13px]">Get API key</a>
+  </div>
+</header>
+<div id="top"></div>
+
+<!-- HERO -->
+<section id="hero" class="relative pt-40 pb-28 lg:pt-48 lg:pb-36 overflow-hidden">
+  <div class="absolute inset-0 hero-vignette pointer-events-none"></div>
+  <div id="heroBlur" class="hero-blur" style="left:-200px;top:60px;"></div>
+  <div class="relative max-w-[1120px] mx-auto px-6 lg:px-8">
+    <div class="grid lg:grid-cols-12 gap-12 lg:gap-10 items-center">
+      <div class="lg:col-span-7 relative">
+        <div class="scanline" aria-hidden="true"></div>
+        <div class="mlabel lbl-sage mb-7"><span class="num" style="font-family:var(--mono);font-size:11px;letter-spacing:.14em;text-transform:uppercase;">SUPPLY CHAIN CONTEXT ENGINEERING</span></div>
+        <h1 class="hero-display reveal">
+          Pre-built AI context for <span class="text-[color:var(--sage)]">supply chain</span> software.
+        </h1>
+        <p class="mt-7 text-[17px] text-text2 max-prose reveal" style="line-height:1.65;">
+          MCP servers, schemas, guardrails, memory, and audit trails for the logistics execution layer. Embed Progue's API and ship domain-specific agents in a week, not six.
+        </p>
+        <div class="mt-10 flex flex-wrap items-center gap-3 reveal">
+          <a href="#cta-placeholder" class="btn btn-primary">
+            Get an API key
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m13 5 7 7-7 7"/></svg>
+          </a>
+          <a href="#docs" class="btn btn-secondary">Read the docs</a>
+        </div>
+        <div class="mt-6 flex items-center gap-3 text-text3 text-[12px] font-mono reveal">
+          <span class="dot-sage" aria-hidden="true"></span>
+          v0.6.0 · Phase 1 modules in general availability
+        </div>
+      </div>
+
+      <!-- Hero diagram: faceted crystal -->
+      <div class="lg:col-span-5 reveal">
+        <div class="crystal-wrap" id="crystalWrap" aria-label="Faceted context engine — a slowly rotating crystalline form">
+          <div class="crystal-blur" id="crystalBlur"></div>
+          <div class="crystal-spin">
+            <svg viewBox="0 0 480 480" class="crystal-svg" role="img" aria-label="Low-poly crystalline polyhedron">
+              <g stroke="rgba(180,210,255,0.15)" stroke-width="1" stroke-linejoin="round">
+                <!-- Upper cap (8) -->
+                <polygon class="facet" data-i="0"  points="240,40 332,120 290,92"   fill="#142238"/>
+                <polygon class="facet" data-i="1"  points="240,40 290,92 244,80"    fill="#1A2C45"/>
+                <polygon class="facet" data-i="2"  points="240,40 244,80 196,92"    fill="#0F1A2E"/>
+                <polygon class="facet" data-i="3"  points="240,40 196,92 148,120"   fill="#142238"/>
+                <polygon class="facet" data-i="4"  points="240,40 148,120 122,168"  fill="#0F1A2E"/>
+                <polygon class="facet" data-i="5"  points="240,40 332,120 358,168"  fill="rgba(91,58,130,0.35)"/>
+                <!-- Mid upper -->
+                <polygon class="facet" data-i="6"  points="332,120 358,168 296,168" fill="#1A2C45"/>
+                <polygon class="facet" data-i="7"  points="290,92  244,80 296,168"  fill="#142238"/>
+                <polygon class="facet" data-i="8"  points="244,80  196,92 184,168"  fill="#0F1A2E"/>
+                <polygon class="facet" data-i="9"  points="196,92  148,120 184,168" fill="#142238"/>
+                <polygon class="facet" data-i="10" points="148,120 122,168 184,168" fill="rgba(168,184,197,0.30)"/>
+                <!-- Equator -->
+                <polygon class="facet" data-i="11" points="358,168 296,168 332,240" fill="#213755"/>
+                <polygon class="facet" data-i="12" points="296,168 184,168 240,240" fill="#0F1A2E"/>
+                <polygon class="facet" data-i="13" points="296,168 240,240 332,240" fill="#1A2C45"/>
+                <polygon class="facet" data-i="14" points="184,168 122,168 148,240" fill="#142238"/>
+                <polygon class="facet" data-i="15" points="184,168 148,240 240,240" fill="rgba(217,197,160,0.25)"/>
+                <polygon class="facet" data-i="16" points="358,168 332,240 380,232" fill="#1A2C45"/>
+                <polygon class="facet" data-i="17" points="122,168 148,240 100,232" fill="#0F1A2E"/>
+                <!-- Lower band -->
+                <polygon class="facet" data-i="18" points="380,232 332,240 354,320" fill="#142238"/>
+                <polygon class="facet" data-i="19" points="332,240 240,240 296,320" fill="#213755"/>
+                <polygon class="facet" data-i="20" points="332,240 296,320 354,320" fill="#1A2C45"/>
+                <polygon class="facet" data-i="21" points="240,240 148,240 184,320" fill="#0F1A2E"/>
+                <polygon class="facet" data-i="22" points="240,240 184,320 296,320" fill="#142238"/>
+                <polygon class="facet" data-i="23" points="148,240 100,232 126,320" fill="#1A2C45"/>
+                <polygon class="facet" data-i="24" points="148,240 126,320 184,320" fill="#0F1A2E"/>
+                <!-- Lower cap -->
+                <polygon class="facet" data-i="25" points="240,440 354,320 296,320"  fill="rgba(91,58,130,0.28)"/>
+                <polygon class="facet" data-i="26" points="240,440 296,320 184,320"  fill="#142238"/>
+                <polygon class="facet" data-i="27" points="240,440 184,320 126,320"  fill="#0F1A2E"/>
+                <polygon class="facet" data-i="28" points="240,440 354,320 380,232"  fill="#1A2C45"/>
+                <polygon class="facet" data-i="29" points="240,440 126,320 100,232"  fill="rgba(217,168,168,0.16)"/>
+              </g>
+              <!-- silhouette rim -->
+              <g fill="none" stroke="rgba(180,210,255,0.20)" stroke-width="1">
+                <polyline points="240,40 332,120 358,168 380,232 354,320 240,440 126,320 100,232 122,168 148,120 240,40"/>
+              </g>
+            </svg>
+          </div>
+          <!-- floating mono labels around the crystal -->
+          <div class="absolute top-1 left-2 font-mono text-[10px] text-text3 tracking-[.12em]">faceted_context_engine</div>
+          <div class="absolute bottom-3 right-3 font-mono text-[10px] text-text3 tracking-[.12em]">30 / facets</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Stats row -->
+    <div class="mt-20 grid grid-cols-2 md:grid-cols-4 hair-t hair-b py-6 reveal">
+      <div class="px-4 md:px-6 md:border-r md:hair flex flex-col gap-1">
+        <span class="font-mono text-[12px] text-text3 tracking-[.12em] uppercase">Modules</span>
+        <span class="font-display text-[28px]" data-count="5">0</span>
+        <span class="text-[12px] text-text2">context modules shipping</span>
+      </div>
+      <div class="px-4 md:px-6 md:border-r md:hair flex flex-col gap-1">
+        <span class="font-mono text-[12px] text-text3 tracking-[.12em] uppercase">HTS accuracy</span>
+        <span class="font-display text-[28px]"><span data-count="90">0</span>%+</span>
+        <span class="text-[12px] text-text2">on benchmark corpus</span>
+      </div>
+      <div class="px-4 md:px-6 md:border-r md:hair flex flex-col gap-1">
+        <span class="font-mono text-[12px] text-text3 tracking-[.12em] uppercase">Integration</span>
+        <span class="font-display text-[28px]"><span data-count="1">0</span>–<span data-count="2">0</span> wk</span>
+        <span class="text-[12px] text-text2">to first agent in prod</span>
+      </div>
+      <div class="px-4 md:px-6 flex flex-col gap-1">
+        <span class="font-mono text-[12px] text-text3 tracking-[.12em] uppercase">Uptime</span>
+        <span class="font-display text-[28px]"><span data-count="99">0</span>.9%</span>
+        <span class="text-[12px] text-text2">Scale-tier SLA</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- PROBLEM -->
+<section id="problem" class="py-28 lg:py-36">
+  <div class="max-w-[1120px] mx-auto px-6 lg:px-8">
+    <div class="mlabel lbl-mist mb-10 reveal"><span class="num">01</span><span class="sep">·</span>Why build context from scratch</div>
+    <div class="grid lg:grid-cols-12 gap-10 lg:gap-14">
+      <div class="lg:col-span-7 reveal">
+        <h2 class="section-h">Six to ten weeks of work before you ship a single decision.</h2>
+        <p class="mt-7 text-text2 text-[16.5px] max-prose">
+          Most teams budget for the model. The cost lives in the surrounding context.
+          Schema design, MCP tool wrappers, guardrail rules, audit logs, vector
+          memory — all of it custom, all of it brittle, none of it your differentiator.
+          One workflow typically costs
+          <span class="text-text"><span class="font-mono">$36,000</span></span>
+          in engineering time before the first production decision is written.
+        </p>
+        <p class="mt-5 text-text3 text-[14px] max-prose font-mono">
+          // industry baseline: 6–10 engineering weeks · 1.5 FTE · $150/hr loaded
+        </p>
+      </div>
+      <div class="lg:col-span-5 flex flex-col gap-3 reveal">
+        <div class="bg-surface ring-hair rounded-xl p-5 flex items-start gap-4">
+          <div class="font-mono text-[11px] text-text3 mt-1 tracking-[.12em]">01</div>
+          <div>
+            <div class="font-display text-[15.5px] mb-1">Schema design &amp; validation</div>
+            <div class="text-text2 text-[13.5px]">BOL, carrier rate cards, HTS tables, customs flags — every input shape is a contract with the LLM.</div>
+          </div>
+        </div>
+        <div class="bg-surface ring-hair rounded-xl p-5 flex items-start gap-4">
+          <div class="font-mono text-[11px] text-text3 mt-1 tracking-[.12em]">02</div>
+          <div>
+            <div class="font-display text-[15.5px] mb-1">Guardrail rule engineering</div>
+            <div class="text-text2 text-[13.5px]">Cost gates, approval triggers, compliance halts — written in code, audited per tenant.</div>
+          </div>
+        </div>
+        <div class="bg-surface ring-hair rounded-xl p-5 flex items-start gap-4">
+          <div class="font-mono text-[11px] text-text3 mt-1 tracking-[.12em]">03</div>
+          <div>
+            <div class="font-display text-[15.5px] mb-1">Vector memory + audit trail</div>
+            <div class="text-text2 text-[13.5px]">pgvector schemas, shipper history facts, append-only decision logs that compliance will accept.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- DEFINITION -->
+<section id="platform" class="relative overflow-hidden" style="padding-top:200px;padding-bottom:200px;border-top:1px solid var(--hair);">
+  <!-- ambient triangulation -->
+  <div class="ambient-tri" aria-hidden="true">
+    <svg viewBox="0 0 1440 720" preserveAspectRatio="xMidYMid slice">
+      <path d="M0 120 L220 60 L160 260 Z M220 60 L420 180 L160 260 Z M420 180 L640 80 L520 320 Z M640 80 L880 220 L520 320 Z M880 220 L1100 100 L960 340 Z M1100 100 L1300 240 L1180 420 Z M1300 240 L1440 120 L1380 380 Z M1440 120 L1440 380 L1380 380 Z M0 120 L0 400 L160 260 Z M160 260 L0 400 L220 460 Z M220 460 L420 180 L160 260 Z M420 180 L520 320 L660 420 Z M520 320 L660 420 L880 380 Z M660 420 L880 380 L780 580 Z M780 580 L880 380 L1080 540 Z M1080 540 L1300 460 L1180 660 Z M1300 460 L1440 380 L1440 620 Z M1440 620 L1300 460 L1180 660 Z M1180 660 L1080 540 L900 700 Z M900 700 L780 580 L660 720 Z M660 720 L780 580 L520 720 Z M520 720 L660 720 L420 660 Z M420 660 L520 320 L300 600 Z M300 600 L220 460 L0 660 Z M0 660 L300 600 L0 720 Z M0 720 L420 660 L300 600 Z" />
+    </svg>
+  </div>
+
+  <div class="max-w-[1120px] mx-auto px-6 lg:px-8 relative">
+    <div class="mlabel lbl-sand mb-12 reveal"><span class="num">02</span><span class="sep">·</span>Definition</div>
+    <div class="reveal" style="max-width:70ch;">
+      <h2 class="section-h">Context engineering, not prompt engineering.</h2>
+      <p class="mt-8 text-text2" style="font-size: 18px; line-height: 1.75; font-family: &quot;Fira Sans&quot;">
+        A context package is the complete informational environment an AI agent
+        needs to operate: the system prompt, the data schemas it expects, the
+        tools it can call via MCP, the memory patterns it uses, and the guardrails
+        enforcing safe decisions. A context package for BOL processing includes
+        all of these — not just a prompt.
+      </p>
+      <p class="mt-5 font-mono text-[12px] text-text3">
+        // displaced prompt engineering as the dominant discipline — Gartner, 2025
+      </p>
+    </div>
+
+    <!-- Six-item horizontal row, text-only with hairline dividers -->
+    <div class="mt-20 reveal hair-t hair-b py-6">
+      <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-y-6">
+        <div class="px-1 lg:px-4 lg:border-r lg:border-[color:var(--hair)] flex flex-col gap-1">
+          <span class="font-mono text-[11px] tracking-[.12em] uppercase text-text2">system_prompts</span>
+          <span class="text-[13px] text-text2">Role + constraints</span>
+        </div>
+        <div class="px-1 lg:px-4 lg:border-r lg:border-[color:var(--hair)] flex flex-col gap-1">
+          <span class="font-mono text-[11px] tracking-[.12em] uppercase text-text2">data_schemas</span>
+          <span class="text-[13px] text-text2">JSON-validated inputs</span>
+        </div>
+        <div class="px-1 lg:px-4 lg:border-r lg:border-[color:var(--hair)] flex flex-col gap-1">
+          <span class="font-mono text-[11px] tracking-[.12em] uppercase text-text2">mcp_server</span>
+          <span class="text-[13px] text-text2">Tool interfaces</span>
+        </div>
+        <div class="px-1 lg:px-4 lg:border-r lg:border-[color:var(--hair)] flex flex-col gap-1">
+          <span class="font-mono text-[11px] tracking-[.12em] uppercase text-text2">guardrails</span>
+          <span class="text-[13px] text-text2">Cost &amp; compliance gates</span>
+        </div>
+        <div class="px-1 lg:px-4 lg:border-r lg:border-[color:var(--hair)] flex flex-col gap-1">
+          <span class="font-mono text-[11px] tracking-[.12em] uppercase text-text2">memory</span>
+          <span class="text-[13px] text-text2">pgvector + facts</span>
+        </div>
+        <div class="px-1 lg:px-4 flex flex-col gap-1">
+          <span class="font-mono text-[11px] tracking-[.12em] uppercase text-text2">audit_trail</span>
+          <span class="text-[13px] text-text2">Append-only log</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+        // displaced prompt engineering as the dominant discipline — Gartner, 2025
+<!-- MODULES -->
+<section id="modules" class="py-28 lg:py-36 hair-t">
+  <div class="max-w-[1120px] mx-auto px-6 lg:px-8">
+    <div class="flex items-end justify-between flex-wrap gap-6 mb-14 reveal">
+      <div>
+        <div class="mlabel lbl-sage mb-5"><span class="num">03</span><span class="sep">·</span>Phase 1 modules</div>
+        <h2 class="section-h max-w-[18ch]">Built for the logistics execution layer.</h2>
+      </div>
+      <p class="text-text2 text-[14.5px] max-w-md">
+        MCP servers, schemas, guardrails and audit trails for the five workflows
+        every shipper-facing platform eventually has to build.
+      </p>
+    </div>
+
+    <div class="grid lg:grid-cols-2 gap-4 lg:gap-5">
+      <!-- Module 1: BOL -->
+      <article class="bg-surface ring-hair rounded-2xl p-7 lg:p-8 accent-sage relative overflow-hidden">
+        <div class="flex items-start justify-between gap-6">
+          <div class="min-w-0">
+            <div class="font-mono text-[11px] tracking-[.12em] uppercase text-[color:var(--sage)]">module · 01</div>
+            <h3 class="font-display text-[24px] mt-2">BOL Processing</h3>
+            <p class="text-text2 text-[14.5px] mt-2 max-w-[40ch]">Parse, validate, extract line items and flag compliance issues on bills of lading.</p>
+          </div>
+          <!-- schematic -->
+          <svg width="86" height="64" viewBox="0 0 86 64" class="flex-none" aria-hidden="true">
+            <rect x="6" y="8" width="28" height="38" rx="4" fill="none" stroke="rgba(168,197,160,0.6)" stroke-width="1.3"/>
+            <path d="M10 16h20M10 22h20M10 28h14M10 34h16" stroke="rgba(168,197,160,0.4)" stroke-width="1.2"/>
+            <path d="M36 28h14" stroke="rgba(255,255,255,0.25)" stroke-width="1.2" stroke-dasharray="2 2"/>
+            <rect x="52" y="14" width="28" height="26" rx="4" fill="none" stroke="rgba(255,255,255,0.25)" stroke-width="1.2"/>
+            <circle cx="66" cy="27" r="3" fill="#A8C5A0"/>
+          </svg>
+        </div>
+        <ul class="mt-7 grid sm:grid-cols-2 gap-x-8 gap-y-2 font-mono text-[12.5px] text-text2">
+          <li>· parse_bol</li>
+          <li>· validate_bol</li>
+          <li>· extract_line_items</li>
+          <li>· flag_compliance_issues</li>
+        </ul>
+      </article>
+
+      <!-- Module 2: Carrier -->
+      <article class="bg-surface ring-hair rounded-2xl p-7 lg:p-8 accent-sand relative overflow-hidden">
+        <div class="flex items-start justify-between gap-6">
+          <div class="min-w-0">
+            <div class="font-mono text-[11px] tracking-[.12em] uppercase text-[color:var(--sand)]">module · 02</div>
+            <h3 class="font-display text-[24px] mt-2">Carrier Rate Comparison</h3>
+            <p class="text-text2 text-[14.5px] mt-2 max-w-[40ch]">FedEx, UPS, XPO rate cards, transit times, and carrier scoring against shipper history.</p>
+          </div>
+          <svg width="86" height="64" viewBox="0 0 86 64" class="flex-none" aria-hidden="true">
+            <g stroke="rgba(217,197,160,0.55)" stroke-width="1.3" fill="none">
+              <rect x="6" y="10" width="22" height="14" rx="3"/>
+              <rect x="6" y="28" width="22" height="14" rx="3"/>
+              <rect x="6" y="46" width="22" height="12" rx="3"/>
+            </g>
+            <path d="M30 17h18M30 35h28M30 52h10" stroke="rgba(255,255,255,0.25)" stroke-width="1.2"/>
+            <rect x="52" y="24" width="28" height="22" rx="4" fill="none" stroke="rgba(255,255,255,0.25)" stroke-width="1.2"/>
+            <path d="M58 35h16" stroke="#D9C5A0" stroke-width="1.5" stroke-linecap="round"/>
+          </svg>
+        </div>
+        <ul class="mt-7 grid sm:grid-cols-2 gap-x-8 gap-y-2 font-mono text-[12.5px] text-text2">
+          <li>· compare_rates</li>
+          <li>· score_carrier</li>
+          <li>· estimate_transit</li>
+          <li>· apply_contract_rules</li>
+        </ul>
+      </article>
+
+      <!-- Module 3: HTS -->
+      <article class="bg-surface ring-hair rounded-2xl p-7 lg:p-8 accent-mist relative overflow-hidden">
+        <div class="flex items-start justify-between gap-6">
+          <div class="min-w-0">
+            <div class="font-mono text-[11px] tracking-[.12em] uppercase text-[color:var(--mist)]">module · 03</div>
+            <h3 class="font-display text-[24px] mt-2">HTS / Customs Classification</h3>
+            <p class="text-text2 text-[14.5px] mt-2 max-w-[40ch]">HS-code classification, tariff lookup, CBAM applicability, and audit-risk flagging.</p>
+          </div>
+          <svg width="86" height="64" viewBox="0 0 86 64" class="flex-none" aria-hidden="true">
+            <g stroke="rgba(168,184,197,0.55)" stroke-width="1.3" fill="none">
+              <path d="M14 8 6 22l8 14 16-2 6-14-8-12z"/>
+              <circle cx="18" cy="22" r="3"/>
+            </g>
+            <path d="M36 30h14" stroke="rgba(255,255,255,0.25)" stroke-width="1.2"/>
+            <g font-family="Geist Mono" font-size="8" fill="#A8B8C5">
+              <text x="54" y="22">8471.30</text>
+              <text x="54" y="34">9403.20</text>
+              <text x="54" y="46">7308.90</text>
+            </g>
+          </svg>
+        </div>
+        <ul class="mt-7 grid sm:grid-cols-2 gap-x-8 gap-y-2 font-mono text-[12.5px] text-text2">
+          <li>· classify_hs_code</li>
+          <li>· lookup_tariff</li>
+          <li>· check_cbam_applicability</li>
+          <li>· flag_audit_risk</li>
+        </ul>
+      </article>
+
+      <!-- Module 4: Approval -->
+      <article class="bg-surface ring-hair rounded-2xl p-7 lg:p-8 accent-sage relative overflow-hidden">
+        <div class="flex items-start justify-between gap-6">
+          <div class="min-w-0">
+            <div class="font-mono text-[11px] tracking-[.12em] uppercase text-[color:var(--sage)]">module · 04</div>
+            <h3 class="font-display text-[24px] mt-2">Approval Workflow</h3>
+            <p class="text-text2 text-[14.5px] mt-2 max-w-[40ch]">Request approval, auto-approve safe decisions, escalate the rest to the right role.</p>
+          </div>
+          <svg width="86" height="64" viewBox="0 0 86 64" class="flex-none" aria-hidden="true">
+            <g fill="none" stroke="rgba(168,197,160,0.55)" stroke-width="1.3">
+              <circle cx="14" cy="32" r="6"/>
+              <path d="M20 32h12"/>
+              <rect x="32" y="14" width="22" height="14" rx="3"/>
+              <rect x="32" y="36" width="22" height="14" rx="3"/>
+              <path d="M54 21h10M54 43h10"/>
+              <circle cx="68" cy="21" r="3" fill="#A8C5A0"/>
+              <circle cx="68" cy="43" r="3" fill="#D9A8A8"/>
+            </g>
+          </svg>
+        </div>
+        <ul class="mt-7 grid sm:grid-cols-2 gap-x-8 gap-y-2 font-mono text-[12.5px] text-text2">
+          <li>· request_approval</li>
+          <li>· auto_approve_safe</li>
+          <li>· escalate_to_role</li>
+          <li>· record_decision</li>
+        </ul>
+      </article>
+
+      <!-- Module 5: Audit (full width) -->
+      <article class="bg-surface ring-hair rounded-2xl p-7 lg:p-8 accent-sand relative overflow-hidden lg:col-span-2">
+        <div class="flex items-start justify-between gap-6">
+          <div class="min-w-0 max-w-[60ch]">
+            <div class="font-mono text-[11px] tracking-[.12em] uppercase text-[color:var(--sand)]">module · 05</div>
+            <h3 class="font-display text-[24px] mt-2">Audit Trail</h3>
+            <p class="text-text2 text-[14.5px] mt-2">Append-only decision log, per-tenant history, exportable reports. Every model call, guardrail evaluation, and human override is recorded with the inputs that produced it.</p>
+            <ul class="mt-6 grid sm:grid-cols-2 gap-x-8 gap-y-2 font-mono text-[12.5px] text-text2 max-w-md">
+              <li>· log_decision</li>
+              <li>· list_history</li>
+              <li>· export_report</li>
+              <li>· verify_chain</li>
+            </ul>
+          </div>
+          <svg width="160" height="86" viewBox="0 0 160 86" class="flex-none hidden sm:block" aria-hidden="true">
+            <g fill="none" stroke="rgba(217,197,160,0.5)" stroke-width="1.2">
+              <rect x="6" y="10" width="148" height="66" rx="6"/>
+              <path d="M6 22h148M6 34h148M6 46h148M6 58h148M6 70h148"/>
+            </g>
+            <g font-family="Geist Mono" font-size="7.5" fill="#8A8C94">
+              <text x="12" y="19">2026-05-09T11:02Z · decision_id=8a3c</text>
+              <text x="12" y="31">  guardrail high_cost_approval · pass</text>
+              <text x="12" y="43">  guardrail customs_flag · halt</text>
+              <text x="12" y="55">  escalate compliance_officer · ok</text>
+              <text x="12" y="67">  override <a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="4f2e2b2226210f2e2c222a612620">[email&#160;protected]</a> · approve</text>
+            </g>
+          </svg>
+        </div>
+      </article>
+    </div>
+  </div>
+</section>
+
+<!-- ARCHITECTURE -->
+<section id="architecture" class="py-28 lg:py-36 hair-t">
+  <div class="max-w-[1120px] mx-auto px-6 lg:px-8">
+    <div class="flex items-end justify-between flex-wrap gap-6 mb-14 reveal">
+      <div>
+        <div class="mlabel lbl-mist mb-5"><span class="num">04</span><span class="sep">·</span>How it integrates</div>
+        <h2 class="section-h max-w-[20ch]">One API surface. Five layers of context underneath.</h2>
+      </div>
+      <a href="#docs" class="font-mono text-[12px] text-text2 hover:text-text inline-flex items-center gap-2">
+        Architecture reference
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M7 17 17 7"/><path d="M8 7h9v9"/></svg>
+      </a>
+    </div>
+
+    <!-- Architectural diagram -->
+    <div class="ring-hair rounded-2xl bg-surface p-6 lg:p-10 reveal">
+      <svg viewBox="0 0 1040 360" class="w-full h-auto" role="img" aria-label="Integration diagram: your product calls the Progue API, which routes through the context engine — five layers — to Claude, and writes to the audit log before returning a response.">
+        <defs>
+          <pattern id="grid2" width="40" height="40" patternUnits="userSpaceOnUse">
+            <path d="M40 0H0V40" fill="none" stroke="rgba(255,255,255,0.03)" stroke-width="1"/>
+          </pattern>
+          <marker id="arr" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+            <path d="M0 0L10 5L0 10z" fill="rgba(255,255,255,0.45)"/>
+          </marker>
+        </defs>
+        <rect width="1040" height="360" fill="url(#grid2)"/>
+
+        <!-- Your product -->
+        <g>
+          <rect x="20" y="140" width="150" height="80" rx="10" fill="#0A1220" stroke="rgba(180,210,255,0.20)"/>
+          <text x="95" y="172" text-anchor="middle" fill="#E8E6E1" font-family="Geist" font-size="13" font-weight="500">Your product</text>
+          <text x="95" y="190" text-anchor="middle" fill="#8A8C94" font-family="Geist Mono" font-size="10">TMS · 3PL · TPM</text>
+        </g>
+        <line x1="170" y1="180" x2="210" y2="180" stroke="rgba(255,255,255,0.35)" stroke-width="1.3" marker-end="url(#arr)"/>
+
+        <!-- API -->
+        <g>
+          <rect x="210" y="140" width="140" height="80" rx="10" fill="#0F1A2E" stroke="rgba(168,197,160,0.45)"/>
+          <text x="280" y="172" text-anchor="middle" fill="#E8E6E1" font-family="Geist" font-size="13" font-weight="500">Progue API</text>
+          <text x="280" y="190" text-anchor="middle" fill="#8A8C94" font-family="Geist Mono" font-size="10">REST + streaming</text>
+        </g>
+        <line x1="350" y1="180" x2="390" y2="180" stroke="rgba(255,255,255,0.35)" stroke-width="1.3" marker-end="url(#arr)"/>
+
+        <!-- Context engine 5 layers -->
+        <g>
+          <rect x="390" y="60" width="280" height="240" rx="14" fill="#0A1220" stroke="rgba(168,197,160,0.35)" stroke-dasharray="3 3"/>
+          <text x="530" y="86" text-anchor="middle" fill="#E8E6E1" font-family="Geist" font-size="13" font-weight="500">Context Engine</text>
+
+          <g font-family="Geist Mono" font-size="10.5" letter-spacing="0.04em">
+            <rect x="406" y="98" width="248" height="34" rx="6" fill="#0F1A2E" stroke="rgba(168,197,160,0.35)"/>
+            <text x="420" y="119" fill="#A8C5A0">system_prompts</text>
+            <text x="640" y="119" text-anchor="end" fill="#5B5D66">/ role</text>
+
+            <rect x="406" y="138" width="248" height="34" rx="6" fill="#0F1A2E" stroke="rgba(217,197,160,0.35)"/>
+            <text x="420" y="159" fill="#D9C5A0">schemas</text>
+            <text x="640" y="159" text-anchor="end" fill="#5B5D66">/ JSON</text>
+
+            <rect x="406" y="178" width="248" height="34" rx="6" fill="#0F1A2E" stroke="rgba(168,184,197,0.35)"/>
+            <text x="420" y="199" fill="#A8B8C5">mcp_server</text>
+            <text x="640" y="199" text-anchor="end" fill="#5B5D66">/ tools</text>
+
+            <rect x="406" y="218" width="248" height="34" rx="6" fill="#0F1A2E" stroke="rgba(217,168,168,0.35)"/>
+            <text x="420" y="239" fill="#D9A8A8">guardrails</text>
+            <text x="640" y="239" text-anchor="end" fill="#5B5D66">/ gates</text>
+
+            <rect x="406" y="258" width="248" height="34" rx="6" fill="#0F1A2E" stroke="rgba(168,197,160,0.35)"/>
+            <text x="420" y="279" fill="#A8C5A0">memory</text>
+            <text x="640" y="279" text-anchor="end" fill="#5B5D66">/ pgvector</text>
+          </g>
+        </g>
+        <line x1="670" y1="180" x2="710" y2="180" stroke="rgba(255,255,255,0.35)" stroke-width="1.3" marker-end="url(#arr)"/>
+
+        <!-- Claude -->
+        <g>
+          <rect x="710" y="140" width="140" height="80" rx="10" fill="#0F1A2E" stroke="rgba(217,197,160,0.45)"/>
+          <text x="780" y="172" text-anchor="middle" fill="#E8E6E1" font-family="Geist" font-size="13" font-weight="500">Claude</text>
+          <text x="780" y="190" text-anchor="middle" fill="#8A8C94" font-family="Geist Mono" font-size="10">opus 4.6 · sonnet 4.6</text>
+        </g>
+
+        <!-- Audit log -->
+        <g>
+          <rect x="710" y="50" width="140" height="60" rx="10" fill="#0A1220" stroke="rgba(168,184,197,0.45)"/>
+          <text x="780" y="78" text-anchor="middle" fill="#E8E6E1" font-family="Geist" font-size="13" font-weight="500">Audit log</text>
+          <text x="780" y="96" text-anchor="middle" fill="#8A8C94" font-family="Geist Mono" font-size="10">append-only</text>
+        </g>
+        <path d="M780 140 L780 110" stroke="rgba(255,255,255,0.35)" stroke-width="1.3" marker-end="url(#arr)" fill="none"/>
+
+        <!-- back to product -->
+        <g>
+          <rect x="880" y="140" width="140" height="80" rx="10" fill="#0A1220" stroke="rgba(180,210,255,0.20)"/>
+          <text x="950" y="172" text-anchor="middle" fill="#E8E6E1" font-family="Geist" font-size="13" font-weight="500">Your product</text>
+          <text x="950" y="190" text-anchor="middle" fill="#8A8C94" font-family="Geist Mono" font-size="10">decision payload</text>
+        </g>
+        <line x1="850" y1="180" x2="880" y2="180" stroke="rgba(255,255,255,0.35)" stroke-width="1.3" marker-end="url(#arr)"/>
+      </svg>
+    </div>
+
+    <div class="mt-12 reveal">
+      <!-- Dense full-width code block with line numbers -->
+      <div class="codeframe">
+        <div class="filename">
+          <span>// classify_shipment.ts</span>
+          <span class="text-text3" style="letter-spacing:.04em;text-transform:none;">node · typescript</span>
+        </div>
+<pre><span class="ln">01
+02
+03
+04
+05
+06
+07
+08
+09
+10
+11
+12
+13
+14
+15
+16
+17
+18
+19
+20</span><span class="src"><span class="com">// MCP call against the HTS module — pseudocode</span>
+<span class="kw">import</span> { Progue } <span class="kw">from</span> <span class="str">"@progue/sdk"</span>;
+
+<span class="kw">const</span> progue = <span class="kw">new</span> <span class="fn">Progue</span>({
+  apiKey: process.env.<span class="str">PT_KEY</span>,
+  tenant: <span class="str">"acme_3pl"</span>,
+});
+
+<span class="kw">const</span> result = <span class="kw">await</span> pt.modules.hts.<span class="fn">classify</span>({
+  description: shipment.description,
+  origin:      <span class="str">"DE"</span>,
+  destination: <span class="str">"US"</span>,
+  declared_value_usd: <span class="num">12400</span>,
+});
+
+<span class="kw">if</span> (result.guardrails.<span class="fn">passed</span>()) {
+  <span class="fn">commit</span>(result.decision);
+} <span class="kw">else</span> {
+  <span class="fn">escalate</span>(result.guardrails.flagged);
+}
+</span></pre>
+      </div>
+    </div>
+
+    <div class="grid lg:grid-cols-2 gap-6 mt-10 reveal">
+      <!-- Stack decisions -->
+      <div class="bg-surface ring-hair rounded-2xl p-7 flex flex-col gap-3">
+        <div class="font-mono text-[11px] tracking-[.12em] uppercase text-text2">built on</div>
+        <ul class="grid sm:grid-cols-2 gap-x-8 gap-y-3 font-mono text-[12.5px] text-text mt-2">
+          <li class="flex items-center gap-3"><span class="dot-sage"></span>Anthropic MCP SDK</li>
+          <li class="flex items-center gap-3"><span class="dot-sage"></span>Claude opus 4.6 + sonnet 4.6</li>
+          <li class="flex items-center gap-3"><span class="dot-sage"></span>pgvector via Supabase</li>
+          <li class="flex items-center gap-3"><span class="dot-sage"></span>Supabase RLS multi-tenancy</li>
+          <li class="flex items-center gap-3"><span class="dot-sage"></span>Clerk auth · SSO · JWT</li>
+          <li class="flex items-center gap-3"><span class="dot-sage"></span>Stripe billing</li>
+          <li class="flex items-center gap-3"><span class="dot-sage"></span>Node.js · TypeScript</li>
+          <li class="flex items-center gap-3"><span class="dot-sage"></span>No LangChain, ever</li>
+        </ul>
+        <p class="text-text3 text-[12.5px] mt-4 font-mono">// every choice serves auditability or multi-tenancy.</p>
+      </div>
+
+      <!-- A second info card: integration timeline -->
+      <div class="bg-surface ring-hair rounded-2xl p-7 flex flex-col gap-4">
+        <div class="font-mono text-[11px] tracking-[.12em] uppercase text-text2">integration shape</div>
+        <ul class="flex flex-col gap-3 text-[13.5px]">
+          <li class="flex gap-4 items-baseline"><span class="font-mono text-[11px] text-text3 w-10">day 1</span><span class="text-text">Get an API key. Read the module reference for the workflows you need.</span></li>
+          <li class="flex gap-4 items-baseline"><span class="font-mono text-[11px] text-text3 w-10">day 2–5</span><span class="text-text">Wire the SDK into your existing service. Map your shipper schema to ours.</span></li>
+          <li class="flex gap-4 items-baseline"><span class="font-mono text-[11px] text-text3 w-10">wk 2</span><span class="text-text">Configure cost gates and approver matrix. Ship to a staging tenant.</span></li>
+          <li class="flex gap-4 items-baseline"><span class="font-mono text-[11px] text-text3 w-10">wk 2+</span><span class="text-text">Promote to production. Export audit reports. Add custom guardrails as needed.</span></li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- GUARDRAILS -->
+<section id="guardrails" class="py-28 lg:py-36 hair-t relative overflow-hidden">
+  <!-- ambient triangulation -->
+  <div class="ambient-tri" aria-hidden="true">
+    <svg viewBox="0 0 1440 720" preserveAspectRatio="xMidYMid slice">
+      <path d="M0 60 L180 220 L120 320 Z M180 220 L340 80 L380 300 Z M340 80 L560 240 L380 300 Z M560 240 L760 100 L660 360 Z M760 100 L960 260 L660 360 Z M960 260 L1180 120 L1080 360 Z M1180 120 L1380 280 L1080 360 Z M1380 280 L1440 100 L1440 380 Z M0 320 L120 320 L80 480 Z M120 320 L380 300 L260 520 Z M380 300 L660 360 L520 540 Z M660 360 L1080 360 L860 580 Z M1080 360 L1440 380 L1280 540 Z M1280 540 L1440 380 L1440 660 Z M1440 660 L1280 540 L1180 720 Z M1180 720 L860 580 L1080 720 Z M860 580 L520 540 L660 720 Z M520 540 L260 520 L420 720 Z M260 520 L80 480 L0 720 Z" />
+    </svg>
+  </div>
+
+  <div class="max-w-[1120px] mx-auto px-6 lg:px-8 relative">
+    <div class="mlabel lbl-rose mb-5 reveal"><span class="num">05</span><span class="sep">·</span>Guardrails, not guesswork</div>
+    <h2 class="section-h max-w-[24ch] reveal">Every decision passes two gates and writes to an audit log.</h2>
+
+    <div class="mt-14 bg-surface ring-hair rounded-2xl overflow-hidden reveal scanlines-bg">
+      <div class="hidden md:grid grid-cols-12 px-6 py-3 hair-b font-mono text-[11px] tracking-[.12em] uppercase text-text3">
+        <div class="col-span-1">id</div>
+        <div class="col-span-3">rule</div>
+        <div class="col-span-4">condition</div>
+        <div class="col-span-2">action</div>
+        <div class="col-span-2">approver</div>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-12 gr-cell gr-row gr-pass items-center pl-6 !border-t-0">
+        <div class="md:col-span-1 font-mono text-[11px] text-text3">R01</div>
+        <div class="md:col-span-3 font-mono text-[13px] text-text mt-1 md:mt-0">high_cost_approval</div>
+        <div class="md:col-span-4 text-text2 text-[13.5px] mt-2 md:mt-0">shipment_cost &gt; <span class="font-mono text-text">$10,000</span></div>
+        <div class="md:col-span-2 mt-2 md:mt-0"><span class="chip" style="color:var(--sand);border-color:rgba(217,197,160,0.35);">request approval</span></div>
+        <div class="md:col-span-2 mt-2 md:mt-0 font-mono text-[12px] text-text2">finance_manager</div>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-12 gr-cell gr-row gr-warn items-center pl-6">
+        <div class="md:col-span-1 font-mono text-[11px] text-text3">R02</div>
+        <div class="md:col-span-3 font-mono text-[13px] text-text mt-1 md:mt-0">new_carrier_check</div>
+        <div class="md:col-span-4 text-text2 text-[13.5px] mt-2 md:mt-0">carrier &#8713; shipper.approved_list</div>
+        <div class="md:col-span-2 mt-2 md:mt-0"><span class="chip" style="color:var(--sand);border-color:rgba(217,197,160,0.35);">warn + confirm</span></div>
+        <div class="md:col-span-2 mt-2 md:mt-0 font-mono text-[12px] text-text2">operations_manager</div>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-12 gr-cell gr-row gr-halt items-center pl-6">
+        <div class="md:col-span-1 font-mono text-[11px] text-text3">R03</div>
+        <div class="md:col-span-3 font-mono text-[13px] text-text mt-1 md:mt-0">customs_flag</div>
+        <div class="md:col-span-4 text-text2 text-[13.5px] mt-2 md:mt-0">customs_required &amp;&amp; broker_not_verified</div>
+        <div class="md:col-span-2 mt-2 md:mt-0"><span class="chip" style="color:var(--rose);border-color:rgba(217,168,168,0.35);">halt + escalate</span></div>
+        <div class="md:col-span-2 mt-2 md:mt-0 font-mono text-[12px] text-text2">compliance_officer</div>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-12 gr-cell gr-row gr-reject items-center pl-6">
+        <div class="md:col-span-1 font-mono text-[11px] text-text3">R04</div>
+        <div class="md:col-span-3 font-mono text-[13px] text-text mt-1 md:mt-0">schema_violation</div>
+        <div class="md:col-span-4 text-text2 text-[13.5px] mt-2 md:mt-0">input.validate(schema) === false</div>
+        <div class="md:col-span-2 mt-2 md:mt-0"><span class="chip" style="color:var(--mist);border-color:rgba(168,184,197,0.35);">reject + error</span></div>
+        <div class="md:col-span-2 mt-2 md:mt-0 font-mono text-[12px] text-text2">&#8212;</div>
+      </div>
+    </div>
+
+    <p class="mt-10 text-text2 max-prose text-[15.5px] reveal">
+      Two gates run on every call. A <span class="text-text">pre-LLM input check</span>
+      validates schema, tenant, and rate. A
+      <span class="text-text">post-LLM action check</span> evaluates the proposed
+      decision against guardrails and routes for human approval where required.
+      <span class="text-[color:var(--sage)]">Nothing executes without passing both.</span>
+    </p>
+  </div>
+</section>
+
+<!-- WHO IT'S FOR -->
+<section id="who" class="py-28 lg:py-36 hair-t">
+  <div class="max-w-[1120px] mx-auto px-6 lg:px-8">
+    <div class="mlabel lbl-sand mb-5 reveal"><span class="num">06</span><span class="sep">·</span>Built for engineering teams at</div>
+    <h2 class="section-h max-w-[26ch] reveal">The companies already shipping AI features in supply chain software.</h2>
+    <div class="mt-12 flex flex-wrap gap-3 reveal">
+      <span class="chip text-text" style="color:var(--text);border-color:var(--hair-strong);">TMS vendors</span>
+      <span class="chip text-text" style="color:var(--text);border-color:var(--hair-strong);">Freight visibility platforms</span>
+      <span class="chip text-text" style="color:var(--text);border-color:var(--hair-strong);">Procurement SaaS</span>
+      <span class="chip text-text" style="color:var(--text);border-color:var(--hair-strong);">3PL software providers</span>
+      <span class="chip text-text" style="color:var(--text);border-color:var(--hair-strong);">Carrier management tools</span>
+    </div>
+    <p class="mt-10 text-text2 text-[16px] max-prose reveal">
+      One vendor deal embeds Progue in hundreds of their end customers'
+      workflows.
+    </p>
+  </div>
+</section>
+
+<!-- 06.5 WHY THIS EXISTS — founder note -->
+<section id="why" class="py-28 lg:py-36 hair-t">
+  <div class="max-w-[1120px] mx-auto px-6 lg:px-8">
+    <div class="mlabel lbl-sand mb-10 reveal" style="--label-color:var(--sand);"><span class="num">06.5</span><span class="sep">·</span>Why this exists</div>
+    <div class="reveal mx-auto" style="max-width:60ch;">
+      <div class="founder-rule">
+        <div class="founder-body">
+          <p>This product exists because the supply chain AI announcements I kept reading in 2025 all skipped over the part that's actually hard. Everyone showed the demo. Nobody showed the schema, the guardrails, the audit trail, the multi-tenancy. That's the part that takes 6–10 weeks and breaks under load.</p>
+          <p>Progue is the part nobody wanted to build, built once, properly, for the teams shipping AI into TMS, freight visibility, and 3PL platforms. If that's the gap you're looking at right now — I'd like to hear from you.</p>
+        </div>
+        <div class="mt-7 font-mono text-[12px] text-text3">— Founder, Toronto</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- PRICING -->
+<section id="pricing" class="py-28 lg:py-36 hair-t">
+  <div class="max-w-[1120px] mx-auto px-6 lg:px-8">
+    <div class="flex items-end justify-between flex-wrap gap-6 mb-14 reveal">
+      <div>
+        <div class="mlabel lbl-sage mb-5"><span class="num">07</span><span class="sep">·</span>Pricing</div>
+        <h2 class="section-h max-w-[20ch]">Three flat tiers. Usage-based overage from month&nbsp;six.</h2>
+      </div>
+      <p class="text-text2 text-[14.5px] max-w-md">
+        Self-serve for Starter and Growth. Scale and Enterprise involve a 30-minute
+        scoping call — no procurement theater.
+      </p>
+    </div>
+
+    <div class="grid lg:grid-cols-3 gap-5 reveal">
+      <!-- STARTER -->
+      <div class="tier-card relative">
+        <div class="flex items-center justify-between">
+          <div class="font-mono text-[11px] tracking-[.14em] uppercase text-text2">starter</div>
+          <div class="font-mono text-[11px] text-text3">eval</div>
+        </div>
+        <div>
+          <div class="font-display text-[44px] leading-none">$149<span class="text-[14px] text-text2 font-mono ml-1">/month</span></div>
+          <div class="text-text2 text-[13px] mt-2">1,000 context calls / month</div>
+        </div>
+        <ul class="flex flex-col gap-3 text-[13.5px] text-text2 mt-1">
+          <li class="flex items-center gap-3"><span class="check"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"><path d="M5 12l5 5L20 7"/></svg></span>BOL + Carrier Rates modules</li>
+          <li class="flex items-center gap-3"><span class="check"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"><path d="M5 12l5 5L20 7"/></svg></span>Standard guardrail rules</li>
+          <li class="flex items-center gap-3"><span class="check"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"><path d="M5 12l5 5L20 7"/></svg></span>Docs + community support</li>
+          <li class="flex items-center gap-3"><span class="check"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"><path d="M5 12l5 5L20 7"/></svg></span>100 req/min API rate limit</li>
+          <li class="flex items-center gap-3"><span class="check"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"><path d="M5 12l5 5L20 7"/></svg></span>30-day audit retention</li>
+          <li class="flex items-center gap-3"><span class="check"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"><path d="M5 12l5 5L20 7"/></svg></span>Best for early integration</li>
+        </ul>
+        <a href="#cta-placeholder" class="btn btn-secondary justify-center mt-2">Start with Starter</a>
+      </div>
+
+      <!-- GROWTH (featured) -->
+      <div class="tier-card featured relative">
+        <div class="absolute -top-3 left-7 pill-sand font-mono text-[10.5px] tracking-[.14em] uppercase px-2.5 py-1 rounded-full">
+          most teams start here
+        </div>
+        <div class="flex items-center justify-between">
+          <div class="font-mono text-[11px] tracking-[.14em] uppercase text-text2">growth</div>
+          <div class="font-mono text-[11px] text-[color:var(--sand)]">recommended</div>
+        </div>
+        <div>
+          <div class="font-display text-[44px] leading-none">$599<span class="text-[14px] text-text2 font-mono ml-1">/month</span></div>
+          <div class="text-text2 text-[13px] mt-2">10,000 context calls / month</div>
+        </div>
+        <ul class="flex flex-col gap-3 text-[13.5px] text-text2 mt-1">
+          <li class="flex items-center gap-3"><span class="check"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"><path d="M5 12l5 5L20 7"/></svg></span>All Phase 1 modules</li>
+          <li class="flex items-center gap-3"><span class="check"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"><path d="M5 12l5 5L20 7"/></svg></span>Custom cost thresholds</li>
+          <li class="flex items-center gap-3"><span class="check"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"><path d="M5 12l5 5L20 7"/></svg></span>Email support · 48h SLA</li>
+          <li class="flex items-center gap-3"><span class="check"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"><path d="M5 12l5 5L20 7"/></svg></span>99.5% uptime SLA</li>
+          <li class="flex items-center gap-3"><span class="check"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"><path d="M5 12l5 5L20 7"/></svg></span>500 req/min API rate limit</li>
+          <li class="flex items-center gap-3"><span class="check"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"><path d="M5 12l5 5L20 7"/></svg></span>90-day audit retention</li>
+          <li class="flex items-center gap-3"><span class="check"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"><path d="M5 12l5 5L20 7"/></svg></span>Growing SC software teams</li>
+        </ul>
+        <a href="#cta-placeholder" class="btn btn-primary justify-center mt-2">Get Growth API key</a>
+      </div>
+
+      <!-- SCALE -->
+      <div class="tier-card relative">
+        <div class="flex items-center justify-between">
+          <div class="font-mono text-[11px] tracking-[.14em] uppercase text-text2">scale</div>
+          <div class="font-mono text-[11px] text-text3">established</div>
+        </div>
+        <div>
+          <div class="font-display text-[44px] leading-none">$1,999<span class="text-[14px] text-text2 font-mono ml-1">/month</span></div>
+          <div class="text-text2 text-[13px] mt-2">50,000 context calls / month</div>
+        </div>
+        <ul class="flex flex-col gap-3 text-[13.5px] text-text2 mt-1">
+          <li class="flex items-center gap-3"><span class="check"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"><path d="M5 12l5 5L20 7"/></svg></span>All modules + Phase 2 early access</li>
+          <li class="flex items-center gap-3"><span class="check"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"><path d="M5 12l5 5L20 7"/></svg></span>Full custom rule sets</li>
+          <li class="flex items-center gap-3"><span class="check"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"><path d="M5 12l5 5L20 7"/></svg></span>Dedicated Slack · 4h SLA</li>
+          <li class="flex items-center gap-3"><span class="check"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"><path d="M5 12l5 5L20 7"/></svg></span>99.9% uptime SLA</li>
+          <li class="flex items-center gap-3"><span class="check"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"><path d="M5 12l5 5L20 7"/></svg></span>2,000 req/min API rate limit</li>
+          <li class="flex items-center gap-3"><span class="check"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"><path d="M5 12l5 5L20 7"/></svg></span>1-year audit retention</li>
+          <li class="flex items-center gap-3"><span class="check"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"><path d="M5 12l5 5L20 7"/></svg></span>Established SC software vendors</li>
+        </ul>
+        <a href="#cta-placeholder" class="btn btn-secondary justify-center mt-2">Talk to us about Scale</a>
+      </div>
+    </div>
+
+    <!-- Enterprise strip -->
+    <div class="mt-5 ring-hair rounded-2xl bg-surface px-7 py-6 flex flex-wrap items-center justify-between gap-5 reveal">
+      <div class="flex items-center gap-5">
+        <div class="font-mono text-[11px] tracking-[.14em] uppercase text-text2">enterprise</div>
+        <div class="hair-l h-7 hidden md:block"></div>
+        <div class="text-text text-[15px] font-display">Custom · <span class="text-text2">$5,000+/month</span></div>
+        <div class="font-mono text-[12px] text-text3 hidden md:block">outbound only</div>
+      </div>
+      <a href="#cta-placeholder" class="btn btn-secondary">Contact sales</a>
+    </div>
+  </div>
+</section>
+
+<!-- ROADMAP -->
+<section id="changelog" class="py-28 lg:py-36 hair-t">
+  <div class="max-w-[1120px] mx-auto px-6 lg:px-8">
+    <div class="mlabel lbl-mist mb-5 reveal"><span class="num">08</span><span class="sep">·</span>Roadmap</div>
+    <h2 class="section-h max-w-[20ch] reveal">Phase 1 shipping. Phase 2 in the queue.</h2>
+    <div class="mt-14 grid md:grid-cols-2 gap-10 reveal">
+      <div>
+        <div class="font-mono text-[11px] tracking-[.14em] uppercase text-[color:var(--sage)] mb-5">shipping now</div>
+        <ul class="flex flex-col">
+          <li class="hair-t py-4 flex items-center gap-4"><span class="dot-sage"></span><span class="font-display text-[16px]">BOL Processing</span><span class="font-mono text-[11px] text-text3 ml-auto">GA</span></li>
+          <li class="hair-t py-4 flex items-center gap-4"><span class="dot-sage"></span><span class="font-display text-[16px]">Carrier Rate Comparison</span><span class="font-mono text-[11px] text-text3 ml-auto">GA</span></li>
+          <li class="hair-t py-4 flex items-center gap-4"><span class="dot-sage"></span><span class="font-display text-[16px]">HTS / Customs Classification</span><span class="font-mono text-[11px] text-text3 ml-auto">GA</span></li>
+          <li class="hair-t py-4 flex items-center gap-4"><span class="dot-sage"></span><span class="font-display text-[16px]">Approval Workflow</span><span class="font-mono text-[11px] text-text3 ml-auto">GA</span></li>
+          <li class="hair-t hair-b py-4 flex items-center gap-4"><span class="dot-sage"></span><span class="font-display text-[16px]">Audit Trail</span><span class="font-mono text-[11px] text-text3 ml-auto">GA</span></li>
+        </ul>
+      </div>
+      <div>
+        <div class="font-mono text-[11px] tracking-[.14em] uppercase text-[color:var(--mist)] mb-5">on the roadmap</div>
+        <ul class="flex flex-col">
+          <li class="hair-t py-4 flex items-center gap-4"><span class="dot-mist"></span><span class="font-display text-[16px]">Carbon / Scope 3 Tracking</span><span class="font-mono text-[11px] text-text3 ml-auto">CBAM · CSRD</span></li>
+          <li class="hair-t py-4 flex items-center gap-4"><span class="dot-mist"></span><span class="font-display text-[16px]">Supplier Risk + ESG Monitoring</span><span class="font-mono text-[11px] text-text3 ml-auto">CSRD · CSDDD</span></li>
+          <li class="hair-t py-4 flex items-center gap-4"><span class="dot-mist"></span><span class="font-display text-[16px]">Reverse Logistics / Returns</span><span class="font-mono text-[11px] text-text3 ml-auto">RMA</span></li>
+          <li class="hair-t hair-b py-4 flex items-center gap-4"><span class="dot-mist"></span><span class="font-display text-[16px]">RFQ / Sourcing Automation</span><span class="font-mono text-[11px] text-text3 ml-auto">PO</span></li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- FAQ -->
+<section id="faq" class="py-28 lg:py-36 hair-t">
+  <div class="max-w-[1120px] mx-auto px-6 lg:px-8">
+    <div class="mlabel lbl-sand mb-5 reveal"><span class="num">09</span><span class="sep">·</span>FAQ</div>
+    <h2 class="section-h max-w-[18ch] reveal">Engineering questions, answered concretely.</h2>
+    <div class="mt-12 reveal">
+      <details class="faq">
+        <summary><span class="font-mono text-[12px] text-text3 pt-1">Q1</span><span class="font-display text-[18px] flex-1">What's the difference between context engineering and prompt engineering?</span><span class="chev font-mono text-[20px]">+</span></summary>
+        <div class="faq-body pl-12"><p class="text-text2 max-prose text-[14.5px]">Prompt engineering produces a single instruction. Context engineering produces the entire informational environment an agent operates inside — system prompt, schemas, tools, memory, guardrails, audit. We ship that whole package per workflow, versioned and tested, so your team writes integration code, not retrieval glue.</p></div>
+      </details>
+      <details class="faq">
+        <summary><span class="font-mono text-[12px] text-text3 pt-1">Q2</span><span class="font-display text-[18px] flex-1">Why MCP and not LangChain?</span><span class="chev font-mono text-[20px]">+</span></summary>
+        <div class="faq-body pl-12"><p class="text-text2 max-prose text-[14.5px]">MCP is a stable, model-side protocol with clear tool contracts and a healthy SDK. LangChain is a framework that wraps it. We are infrastructure for other engineers; we don't ship abstractions our customers have to learn to debug. The Anthropic MCP SDK is the entire dependency.</p></div>
+      </details>
+      <details class="faq">
+        <summary><span class="font-mono text-[12px] text-text3 pt-1">Q3</span><span class="font-display text-[18px] flex-1">How does multi-tenancy work?</span><span class="chev font-mono text-[20px]">+</span></summary>
+        <div class="faq-body pl-12"><p class="text-text2 max-prose text-[14.5px]">Supabase Row-Level Security, scoped per tenant id, enforced at the database. Memory, audit logs, custom guardrail rules and approved-carrier lists are isolated. JWTs flow from Clerk; rules cannot read across tenants even with a compromised application key.</p></div>
+      </details>
+      <details class="faq">
+        <summary><span class="font-mono text-[12px] text-text3 pt-1">Q4</span><span class="font-display text-[18px] flex-1">Can I write custom guardrail rules?</span><span class="chev font-mono text-[20px]">+</span></summary>
+        <div class="faq-body pl-12"><p class="text-text2 max-prose text-[14.5px]">Yes. Growth supports custom cost thresholds; Scale and Enterprise support full custom rule sets, including pre-LLM and post-LLM gates, escalation roles, and approver matrices. Rules are declarative and live alongside our standard set.</p></div>
+      </details>
+      <details class="faq">
+        <summary><span class="font-mono text-[12px] text-text3 pt-1">Q5</span><span class="font-display text-[18px] flex-1">Do you offer a free tier?</span><span class="chev font-mono text-[20px]">+</span></summary>
+        <div class="faq-body pl-12"><p class="text-text2 max-prose text-[14.5px]">No. The Starter tier at $149/mo is the on-ramp — it gives you the BOL and Carrier Rates modules, 1,000 calls, and 30 days of audit retention. The cost of running this responsibly is real, and a free tier would either capture the wrong users or compromise the architecture.</p></div>
+      </details>
+    </div>
+  </div>
+</section>
+
+<!-- CTA STRIP -->
+<section id="cta-placeholder" class="py-28 lg:py-36 hair-t">
+  <div class="max-w-[1120px] mx-auto px-6 lg:px-8 text-center">
+    <div class="mlabel lbl-sage mb-5 reveal"><span class="num">10</span><span class="sep">·</span>Get started</div>
+    <h2 class="section-h max-w-[26ch] mx-auto reveal" style="text-wrap:balance;">Self-serve. No sales call required for Starter or Growth.</h2>
+    <div class="mt-10 flex items-center justify-center flex-wrap gap-3 reveal">
+      <a href="#cta-placeholder" class="btn btn-primary">Get API key</a>
+      <a href="#docs" class="btn btn-secondary">Read the docs</a>
+    </div>
+    <div class="mt-6 font-mono text-[11.5px] text-text3 reveal">
+      // 30-day audit retention on Starter · 90-day on Growth · 1-year on Scale
+    </div>
+  </div>
+</section>
+
+<!-- FOOTER -->
+<footer id="docs" class="hair-t pt-24 pb-12">
+  <div class="max-w-[1120px] mx-auto px-6 lg:px-8">
+    <div class="grid lg:grid-cols-12 gap-12">
+      <div class="lg:col-span-4">
+        <div class="flex items-center gap-1">
+          <span class="font-display text-[18px]">progue</span>
+          <span class="font-mono text-[18px] text-[color:var(--sage)] -mt-1">.</span>
+        </div>
+        <p class="font-mono text-[12.5px] text-text2 mt-3 max-w-[40ch]">
+          Context infrastructure for supply chain AI.
+        </p>
+        <div class="mt-6 inline-flex items-center gap-3 chip">
+          <span class="dot-sage pulse-dot"></span>All systems operational
+        </div>
+      </div>
+
+      <div class="lg:col-span-8 grid grid-cols-2 sm:grid-cols-4 gap-8">
+        <div>
+          <div class="font-mono text-[11px] tracking-[.14em] uppercase text-text3 mb-4">Platform</div>
+          <ul class="flex flex-col gap-3 text-[13.5px] text-text2">
+            <li><a class="hover:text-text" href="#modules">Modules</a></li>
+            <li><a class="hover:text-text" href="#architecture">Architecture</a></li>
+            <li><a class="hover:text-text" href="#guardrails">Guardrails</a></li>
+            <li><a class="hover:text-text" href="#changelog">Roadmap</a></li>
+          </ul>
+        </div>
+        <div>
+          <div class="font-mono text-[11px] tracking-[.14em] uppercase text-text3 mb-4">Developers</div>
+          <ul class="flex flex-col gap-3 text-[13.5px] text-text2">
+            <li><a class="hover:text-text" href="#docs">Docs</a></li>
+            <li><a class="hover:text-text" href="#docs">API reference</a></li>
+            <li><a class="hover:text-text" href="#docs">MCP SDK</a></li>
+            <li><a class="hover:text-text" href="#changelog">Changelog</a></li>
+          </ul>
+        </div>
+        <div>
+          <div class="font-mono text-[11px] tracking-[.14em] uppercase text-text3 mb-4">Company</div>
+          <ul class="flex flex-col gap-3 text-[13.5px] text-text2">
+            <li><a class="hover:text-text" href="#cta-placeholder">About</a></li>
+            <li><a class="hover:text-text" href="#cta-placeholder">Customers</a></li>
+            <li><a class="hover:text-text" href="#cta-placeholder">Blog</a></li>
+            <li><a class="hover:text-text" href="#cta-placeholder">Contact</a></li>
+          </ul>
+        </div>
+        <div>
+          <div class="font-mono text-[11px] tracking-[.14em] uppercase text-text3 mb-4">Legal</div>
+          <ul class="flex flex-col gap-3 text-[13.5px] text-text2">
+            <li><a class="hover:text-text" href="#cta-placeholder">Privacy</a></li>
+            <li><a class="hover:text-text" href="#cta-placeholder">Terms</a></li>
+            <li><a class="hover:text-text" href="#cta-placeholder">Security</a></li>
+            <li><a class="hover:text-text" href="#cta-placeholder">Status</a></li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <div class="mt-16 hair-t pt-6 flex flex-wrap items-center justify-between gap-4 text-[12px] text-text3">
+      <div class="font-mono">© 2026 Progue. Built on the Model Context Protocol.</div>
+      <div class="flex items-center gap-5">
+        <a aria-label="X" href="#cta-placeholder" class="hover:text-text">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4l16 16M20 4 4 20"/></svg>
+        </a>
+        <a aria-label="GitHub" href="#cta-placeholder" class="hover:text-text">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 19c-4 1-4-2-6-2"/><path d="M15 22v-3.5a3 3 0 0 0-.8-2.2c2.8-.3 5.8-1.4 5.8-6a4.6 4.6 0 0 0-1.3-3.2 4.3 4.3 0 0 0-.1-3.2s-1-.3-3.4 1.2a11.6 11.6 0 0 0-6 0C6.8 1.6 5.8 1.9 5.8 1.9a4.3 4.3 0 0 0-.1 3.2A4.6 4.6 0 0 0 4.3 8.3c0 4.6 3 5.7 5.8 6a3 3 0 0 0-.8 2.2V22"/></svg>
+        </a>
+        <a aria-label="LinkedIn" href="#cta-placeholder" class="hover:text-text">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="3"/><path d="M8 10v8M8 7.5v.01M12 18v-5a2 2 0 0 1 4 0v5M12 13v5"/></svg>
+        </a>
+      </div>
+    </div>
+  </div>
+</footer>
+
+<script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script><script>
+  // Reveal on scroll
+  (function(){
+    const els = document.querySelectorAll('.reveal');
+    let anyShown = false;
+    function showAll(){
+      els.forEach(el => el.classList.add('in'));
+      anyShown = true;
+    }
+    if (!('IntersectionObserver' in window)) { showAll(); return; }
+    const io = new IntersectionObserver((entries)=>{
+      entries.forEach(e=>{
+        if(e.isIntersecting){ e.target.classList.add('in'); anyShown = true; io.unobserve(e.target); }
+      });
+    },{threshold:0.12, rootMargin:'0px 0px -40px 0px'});
+    els.forEach(el=>io.observe(el));
+    // Fallback: if IO has not fired by 800ms after load, just reveal everything.
+    const __doReveal = () => setTimeout(() => { if (!anyShown) showAll(); }, 400);
+    if (document.readyState === 'complete') __doReveal();
+    else window.addEventListener('load', __doReveal);
+    // Extra safety: also fire on first scroll
+    window.addEventListener('scroll', () => { if (!anyShown) showAll(); }, { once:true, passive:true });
+  })();
+
+  // Stat count-up
+  (function(){
+    const nums = document.querySelectorAll('[data-count]');
+    function run(el){
+      const end = parseFloat(el.dataset.count);
+      const dur = 1100;
+      const t0 = performance.now();
+      function tick(t){
+        const p = Math.min(1,(t-t0)/dur);
+        const eased = 1-Math.pow(1-p,3);
+        const v = end*eased;
+        el.textContent = Number.isInteger(end) ? Math.round(v).toString() : v.toFixed(1);
+        if(p<1) requestAnimationFrame(tick);
+        else el.textContent = end.toString();
+      }
+      requestAnimationFrame(tick);
+    }
+    let started = false;
+    function runAll(){ if(started) return; started = true; nums.forEach(run); }
+    if ('IntersectionObserver' in window) {
+      const io = new IntersectionObserver((entries)=>{
+        entries.forEach(e=>{ if(e.isIntersecting){ run(e.target); io.unobserve(e.target); started = true; } });
+      },{threshold:0.6});
+      nums.forEach(n=>io.observe(n));
+    }
+    // Fallback after load
+    (document.readyState === 'complete') ? setTimeout(runAll, 100) : window.addEventListener('load', () => setTimeout(runAll, 900));
+  })();
+
+  // Hero cursor-follow blur
+  (function(){
+    const blur = document.getElementById('heroBlur');
+    const hero = document.getElementById('hero');
+    if(!blur || !hero) return;
+    let tx=0,ty=0,cx=0,cy=0;
+    hero.addEventListener('mousemove',(e)=>{
+      const r = hero.getBoundingClientRect();
+      tx = e.clientX - r.left - 300;
+      ty = e.clientY - r.top - 300;
+    });
+    function loop(){
+      cx += (tx-cx)*0.07;
+      cy += (ty-cy)*0.07;
+      blur.style.transform = `translate(${cx}px, ${cy}px)`;
+      requestAnimationFrame(loop);
+    }
+    requestAnimationFrame(loop);
+  })();
+
+  // Crystal facet cascade reveal on scroll-into-view
+  (function(){
+    const wrap = document.getElementById('crystalWrap');
+    if(!wrap) return;
+    const facets = wrap.querySelectorAll('.facet');
+    facets.forEach((el, idx) => { el.style.transitionDelay = `${40 + idx * 36}ms`; });
+    let revealed = false;
+    function reveal(){ if(revealed) return; revealed = true; wrap.classList.add('crystal-revealed'); }
+    if ('IntersectionObserver' in window) {
+      const io = new IntersectionObserver((entries)=>{
+        entries.forEach(e=>{ if(e.isIntersecting){ reveal(); io.unobserve(e.target); } });
+      },{threshold:0.15});
+      io.observe(wrap);
+    }
+    (document.readyState === 'complete') ? setTimeout(reveal, 100) : window.addEventListener('load', () => setTimeout(reveal, 900));
+  })();
+</script>
+
+</body>
+</html>

@@ -67,6 +67,7 @@ vi.mock('../../lib/db.js', () => ({
     tenant: {
       findUnique: vi.fn().mockResolvedValue(null),
       update:     vi.fn().mockResolvedValue({}),
+      upsert:     vi.fn().mockResolvedValue({ id: 'tenant-test', name: 'Organization', tier: 'STARTER' }),
     },
     apiKey: {
       findMany:   vi.fn().mockResolvedValue([]),

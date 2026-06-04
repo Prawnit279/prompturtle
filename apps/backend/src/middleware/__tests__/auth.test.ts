@@ -73,6 +73,33 @@ describe('auth middleware', () => {
     expect(res.locals.userId).toBe('user_abc');
   });
 
+  it('sets tenantId from Clerk v2 nested "o" claim (o.id)', async () => {
+    // Clerk v2 session tokens nest org data under `o` instead of flat org_id.
+    verifyToken.mockResolvedValue({
+      sub: 'user_abc',
+      v:   2,
+      o:   { id: 'org_v2xyz', rol: 'admin', slg: 'progue' },
+    });
+    const req = makeReq('Bearer valid.token.here');
+    const res = makeRes();
+    await auth(req, res, next);
+    expect(next).toHaveBeenCalledOnce();
+    expect(res.locals.tenantId).toBe('org_v2xyz');
+    expect(res.locals.userId).toBe('user_abc');
+  });
+
+  it('prefers flat org_id when both org_id and o.id are present', async () => {
+    verifyToken.mockResolvedValue({
+      sub:    'user_abc',
+      org_id: 'org_flat',
+      o:      { id: 'org_nested' },
+    });
+    const req = makeReq('Bearer valid.token.here');
+    const res = makeRes();
+    await auth(req, res, next);
+    expect(res.locals.tenantId).toBe('org_flat');
+  });
+
   it('sets userId but not tenantId on valid token without org_id', async () => {
     verifyToken.mockResolvedValue({ sub: 'user_abc' });
     const req = makeReq('Bearer valid.token.here');
