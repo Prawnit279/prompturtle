@@ -37,9 +37,19 @@ export async function auth(req: Request, res: Response, next: NextFunction): Pro
     const payload = await clerkClient.verifyToken(token);
 
     res.locals.userId = payload.sub;
-    // org_id is present when the user has an active organization session
-    if (payload.org_id) {
-      res.locals.tenantId = payload.org_id;
+
+    // Resolve the active organization id from the JWT.
+    // Clerk v1 session tokens expose a flat `org_id` claim.
+    // Clerk v2 session tokens (v: 2) nest org data under `o`: { id, rol, slg }.
+    // We support both so tenant resolution works regardless of token version.
+    // justification: Clerk SDK v4 types don't model the v2 `o` claim.
+    const claims = payload as Record<string, unknown>;
+    const flatOrgId = typeof claims.org_id === 'string' ? claims.org_id : undefined;
+    const nestedOrg = claims.o as { id?: string } | undefined;
+    const orgId = flatOrgId ?? nestedOrg?.id;
+
+    if (orgId) {
+      res.locals.tenantId = orgId;
     }
 
     next();
