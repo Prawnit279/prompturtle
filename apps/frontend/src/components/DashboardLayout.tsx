@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { Link, useLocation, Outlet } from 'react-router-dom';
 import { OrganizationSwitcher, UserButton, useAuth, useOrganizationList } from '@clerk/clerk-react';
 import {
@@ -25,21 +25,38 @@ export default function DashboardLayout() {
     userMemberships: { infinite: true },
   });
 
-  // Auto-activate the first org when no org is currently in the session.
-  // We do this BEFORE rendering child routes so their useEffect API calls
-  // always fire with an org-scoped JWT (org_id present → no tenant_required).
+  // orgReady: true only after setActive has fully resolved so the JWT
+  // returned by getToken() is guaranteed to contain org_id.
+  // If the session already has an org active (orgId truthy on first render),
+  // we skip setActive and mark ready immediately.
+  const [orgReady, setOrgReady] = useState(false);
+
   useEffect(() => {
-    if (orgId) return;
-    if (!isLoaded) return;
-    const firstOrg = userMemberships?.data?.[0]?.organization;
-    if (firstOrg && setActive) {
-      void setActive({ organization: firstOrg.id });
+    if (orgReady) return;
+
+    // Session already has an active org — no activation needed.
+    if (orgId) {
+      setOrgReady(true);
+      return;
     }
-  }, [orgId, userMemberships, isLoaded, setActive]);
+
+    if (!isLoaded) return;
+
+    const firstOrg = userMemberships?.data?.[0]?.organization;
+    if (!firstOrg || !setActive) return;
+
+    // Await setActive so the JWT is refreshed before children render.
+    setActive({ organization: firstOrg.id })
+      .then(() => setOrgReady(true))
+      .catch((_err: unknown) => {
+        // setActive failed — keep orgReady false so the loading screen
+        // persists rather than reaching an unusable org-less dashboard.
+      });
+  }, [orgId, orgReady, isLoaded, userMemberships, setActive]);
 
   // Block child routes until the org session is confirmed.
   // Prevents API calls firing before org_id is in the JWT.
-  if (!orgId) {
+  if (!orgReady) {
     return (
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh', color: 'var(--text-2)', fontFamily: 'var(--sans)', fontSize: '13px' }}>
         Loading workspace…
