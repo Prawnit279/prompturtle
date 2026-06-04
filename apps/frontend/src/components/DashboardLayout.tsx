@@ -20,39 +20,34 @@ const NAV = [
 
 export default function DashboardLayout() {
   const { pathname } = useLocation();
-  const { orgId } = useAuth();
+  const { orgId, getToken } = useAuth();
   const { userMemberships, setActive, isLoaded } = useOrganizationList({
     userMemberships: { infinite: true },
   });
 
-  // orgReady: true only after setActive has fully resolved so the JWT
-  // returned by getToken() is guaranteed to contain org_id.
-  // If the session already has an org active (orgId truthy on first render),
-  // we skip setActive and mark ready immediately.
+  // orgReady: true only after we have confirmed that getToken() returns a JWT
+  // that actually contains org_id. Clerk caches JWTs for up to 60 s, so after
+  // setActive we must force a refresh (skipCache: true) before rendering
+  // child routes — otherwise API calls fire with a stale token that has no
+  // org_id and the backend returns tenant_required.
   const [orgReady, setOrgReady] = useState(false);
 
   useEffect(() => {
     if (orgReady) return;
-
-    // Session already has an active org — no activation needed.
-    if (orgId) {
-      setOrgReady(true);
-      return;
-    }
-
     if (!isLoaded) return;
 
     const firstOrg = userMemberships?.data?.[0]?.organization;
     if (!firstOrg || !setActive) return;
 
-    // Await setActive so the JWT is refreshed before children render.
+    // 1. Activate the org in the Clerk session.
+    // 2. Force-refresh the JWT so org_id is present before children render.
     setActive({ organization: firstOrg.id })
+      .then(() => getToken({ skipCache: true }))
       .then(() => setOrgReady(true))
       .catch((_err: unknown) => {
-        // setActive failed — keep orgReady false so the loading screen
-        // persists rather than reaching an unusable org-less dashboard.
+        // Keep orgReady false — user stays on loading screen.
       });
-  }, [orgId, orgReady, isLoaded, userMemberships, setActive]);
+  }, [orgReady, isLoaded, userMemberships, setActive, getToken]);
 
   // Block child routes until the org session is confirmed.
   // Prevents API calls firing before org_id is in the JWT.
