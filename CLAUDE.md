@@ -15,6 +15,19 @@
 - **Node version:** 20 (`.nvmrc`)
 - **Supabase project ID:** `aowvybglokzbcuerlago`
 
+### Production URLs & Hosting
+
+| Surface | URL | Host |
+|---|---|---|
+| Marketing site | `https://progue.ai` | Vercel |
+| Dashboard app | `https://app.progue.ai` | Vercel (same project, subdomain) |
+| Backend API | `https://api.progue.ai` | Railway (US West, node@20) |
+| DNS registrar | Domain.com | — |
+
+- **Clerk production instance:** primary domain `progue.ai`, Frontend API `clerk.progue.ai`. Requires 5 CNAME records on Domain.com (clerk, accounts, clkmail, clk._domainkey, clk2._domainkey → `*.clerk.services`). All verified, SSL issued.
+- **Clerk keys:** production publishable `pk_live_Y2xlcmsucHJvZ3VlLmFpJA`. Frontend (`VITE_CLERK_PUBLISHABLE_KEY` on Vercel) and backend (`CLERK_SECRET_KEY` = `sk_live_...` on Railway) MUST both be the production pair — mixing dev/prod keys breaks JWT verification.
+- **Google OAuth:** Clerk production uses **custom credentials** (shared dev credentials do NOT work in production). Google Cloud project `progue-production`; redirect URI `https://clerk.progue.ai/v1/oauth_callback`, JS origin `https://progue.ai`.
+
 ---
 
 ## Monorepo Structure
@@ -305,7 +318,7 @@ Depends on: PR 5.2
 
 ## Test Suite Status
 
-- **Backend:** 196 passing, 2 skipped (DB connection skips in `db.rls.test.ts`)
+- **Backend:** 239 passing, 2 skipped (DB connection skips in `db.rls.test.ts`)
 - **Frontend:** `tsc --noEmit` clean (0 errors)
 - **Test runner:** `npx vitest run` from `apps/backend/`
 - **Integration tests:** supertest + full app mock (Clerk, Prisma, Anthropic all mocked)
@@ -345,7 +358,8 @@ vi.mock('@clerk/clerk-sdk-node', () => ({
 2026-05-18-23:19 | pr-4.2-approval-workflow | d92ab7c
 2026-05-18-23:26 | pr-4.3-phase2-stubs      | f1a52e3
 2026-05-19-22:21 | pr-4.4-presell-docs      | 4d85d39
-2026-05-19-22:25 | pr-5.1-developer-dashboard | 1da6fa3  ← last checkpoint
+2026-05-19-22:25 | pr-5.1-developer-dashboard | 1da6fa3
+2026-06-04-19:40 | prod-launch-clerk-v2-fix     | b083d19  ← last checkpoint
 ```
 
 ---
@@ -360,6 +374,9 @@ vi.mock('@clerk/clerk-sdk-node', () => ({
 6. **Anthropic SDK stream flag** — always pass `stream: false` to get `Message` return type
 7. **MOCK_CREATE capture in tests** — must capture `Anthropic.mock.results[0]?.value` at module scope BEFORE `beforeEach` runs (vi.clearAllMocks() wipes mock.results)
 8. **Supabase MCP** — native PG connection broken on this machine; use `mcp__supabase__apply_migration` for all DDL
+9. **Clerk v2 session tokens (CRITICAL)** — production Clerk issues `v: 2` JWTs that nest the org under an `o` claim (`{ id, rol, slg }`), NOT a flat `org_id`. `auth.ts` reads both: `payload.org_id ?? payload.o?.id`. If `tenantId` is null despite an active org, decode the JWT (`JSON.parse(atob(token.split('.')[1]))`) and check for the `o` claim. Do NOT assume `org_id` is flat.
+10. **Self-healing tenants** — `ensureTenant` middleware (on `protectedRouter`, after `requireTenant`) upserts a Tenant row for the active org using **raw `prisma`** (the RLS `db` client rejects non-UUID ids). In-memory `knownTenants` cache → one write per tenant per process. New route tests must mock `prisma.tenant.upsert`.
+11. **tenants.id is TEXT, not UUID** — migrated from `@db.Uuid` to `String` to store Clerk org ids (`org_...`). The RLS `db` extension in `db.ts` still has a `UUID_RE` guard, so tenant-scoped queries with org ids MUST use raw `prisma`, not `db`.
 
 ---
 
