@@ -41,3 +41,7 @@ apps/backend/prisma/migrations/
 uploads/
 .vercel
 .env*
+
+# stray archives / scratch files
+*.zip
+apps/frontend/Prompturtle.html
