@@ -99,6 +99,16 @@ app.use((req: Request, res: Response, next: NextFunction) => {
 // ---- Public routes ----
 app.use('/api/docs', docsRouter);
 
+// Temporary diagnostic — returns JWT claims the backend actually received.
+// Remove after confirming org_id is present in production tokens.
+app.get('/api/whoami', (req: Request, res: Response) => {
+  res.json({
+    userId:   res.locals.userId   ?? null,
+    tenantId: res.locals.tenantId ?? null,
+    hasAuth:  !!req.headers.authorization,
+  });
+});
+
 app.get('/api/health', (_req, res) => {
   res.json({
     status: 'ok',
