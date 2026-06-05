@@ -81,6 +81,22 @@ app.use('/api/webhooks/clerk',  express.raw({ type: 'application/json' }), clerk
 
 app.use(express.json());
 
+// ---- Health check ----
+// Mounted BEFORE rate limiting and auth so it is fully public and unthrottled.
+// Load balancers, uptime monitors, and load tests may send stale/foreign
+// Authorization headers; the global auth parser would otherwise 401 a
+// non-JWT Bearer token, and the rate limiter would 429 burst probes.
+// A health check must never depend on auth or rate-limit state.
+app.get('/api/health', (_req, res) => {
+  res.json({
+    status: 'ok',
+    service: 'progue-api',
+    version: '0.1.0',
+    uptime: Math.floor(process.uptime()),
+    timestamp: new Date().toISOString(),
+  });
+});
+
 // HTTP-level rate limiting — fires before auth, protects unauthenticated floods (M-4)
 app.use(
   rateLimit({
@@ -99,16 +115,6 @@ app.use((req: Request, res: Response, next: NextFunction) => {
 
 // ---- Public routes ----
 app.use('/api/docs', docsRouter);
-
-app.get('/api/health', (_req, res) => {
-  res.json({
-    status: 'ok',
-    service: 'progue-api',
-    version: '0.1.0',
-    uptime: Math.floor(process.uptime()),
-    timestamp: new Date().toISOString(),
-  });
-});
 
 // ---- MCP server registration ----
 registerServer(new BolProcessorMCP());

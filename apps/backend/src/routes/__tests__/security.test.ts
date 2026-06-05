@@ -109,3 +109,23 @@ describe('CORS', () => {
     expect(res.status).toBe(200);
   });
 });
+
+// ===========================================================================
+describe('Health check', () => {
+  it('returns 200 with no Authorization header', async () => {
+    const res = await request(app).get('/api/health');
+    expect(res.status).toBe(200);
+    expect(res.body.status).toBe('ok');
+  });
+
+  it('returns 200 even when a non-JWT Bearer token is sent (public, pre-auth)', async () => {
+    // A load balancer / load test may attach an API key or stale token.
+    // verifyToken is mocked to always reject here; health must NOT 401
+    // because it is mounted before the global auth middleware.
+    const res = await request(app)
+      .get('/api/health')
+      .set('Authorization', 'Bearer ptk_not_a_jwt');
+    expect(res.status).toBe(200);
+    expect(res.body.status).toBe('ok');
+  });
+});
