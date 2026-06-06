@@ -1,8 +1,71 @@
 import { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { useAuth } from '@clerk/clerk-react';
 
 import { apiFetch } from '../lib/api';
 import type { UsageResponse } from '../types/dashboard';
+
+const ONBOARDING_STEPS: Array<{ n: number; label: string; to: string }> = [
+  { n: 1, label: 'Create an API key',     to: '/dashboard/keys' },
+  { n: 2, label: 'Install the SDK',       to: '/docs/installation' },
+  { n: 3, label: 'Follow the Quickstart', to: '/docs/quickstart' },
+];
+
+function GettingStartedPanel() {
+  return (
+    <div
+      style={{
+        background:   'var(--surface)',
+        border:       '1px solid var(--border)',
+        borderRadius: '12px',
+        padding:      '24px',
+        marginBottom: '32px',
+      }}
+    >
+      <h2 style={{ fontSize: '16px', fontWeight: 500, color: 'var(--text)', marginBottom: '6px' }}>
+        Make your first API call
+      </h2>
+      <p style={{ fontSize: '13px', color: 'var(--text-2)', marginBottom: '18px' }}>
+        You haven&rsquo;t made any calls yet. Three steps to your first classified decision.
+      </p>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '12px' }}>
+        {ONBOARDING_STEPS.map((step) => (
+          <Link
+            key={step.n}
+            to={step.to}
+            style={{
+              display:        'block',
+              background:     'var(--surface-raised)',
+              border:         '1px solid var(--border)',
+              borderRadius:   '10px',
+              padding:        '14px 16px',
+              textDecoration: 'none',
+            }}
+          >
+            <span
+              style={{
+                display:        'inline-flex',
+                alignItems:     'center',
+                justifyContent: 'center',
+                width:          '22px',
+                height:         '22px',
+                borderRadius:   '50%',
+                background:     'var(--brand)',
+                color:          '#fff',
+                fontFamily:     'var(--mono)',
+                fontSize:       '11px',
+                marginBottom:   '10px',
+              }}
+            >
+              {step.n}
+            </span>
+            <p style={{ fontSize: '13px', color: 'var(--text)', fontWeight: 500 }}>{step.label} →</p>
+          </Link>
+        ))}
+      </div>
+    </div>
+  );
+}
 
 interface StatCardProps { label: string; value: string }
 
@@ -64,6 +127,9 @@ export default function Overview() {
       <p style={{ fontSize: '13px', color: 'var(--text-2)', marginBottom: '24px' }}>
         Usage summary for all MCP servers connected to Progue.
       </p>
+
+      {/* Onboarding panel — only in the empty state */}
+      {usage.totalCalls === 0 && <GettingStartedPanel />}
 
       {/* Stat cards */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '14px', marginBottom: '32px' }}>

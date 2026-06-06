@@ -24,6 +24,15 @@ function latencyColor(ms: number): string {
   return 'var(--error)';
 }
 
+/** Maps an MCP server slug to its module docs page. */
+const SERVER_DOCS: Record<string, string> = {
+  'bol-processor':    '/docs/api/bol',
+  'carrier-rates':    '/docs/api/carrier',
+  'hts-classifier':   '/docs/api/hts',
+  'approval-workflow':'/docs/api/approval',
+  'audit-trail':      '/docs/api/audit',
+};
+
 interface DrawerProps { call: ToolCallLog }
 
 function LogDrawer({ call }: DrawerProps) {
@@ -246,7 +255,35 @@ export default function CallLogs() {
                       <span style={{ color: 'var(--text-3)' }}>
                         {new Date(call.createdAt).toLocaleTimeString()}
                       </span>
-                      <span>{call.mcpServer}</span>
+                      <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                        {call.mcpServer}
+                        {SERVER_DOCS[call.mcpServer] && (
+                          <a
+                            href={SERVER_DOCS[call.mcpServer]}
+                            target="_blank"
+                            rel="noreferrer"
+                            onClick={(e) => e.stopPropagation()}
+                            title={`Open ${call.mcpServer} module docs`}
+                            aria-label={`Open ${call.mcpServer} module docs`}
+                            style={{
+                              display:        'inline-flex',
+                              alignItems:     'center',
+                              justifyContent: 'center',
+                              width:          '14px',
+                              height:         '14px',
+                              borderRadius:   '50%',
+                              border:         '1px solid var(--border-strong)',
+                              color:          'var(--text-3)',
+                              fontSize:       '9px',
+                              lineHeight:     1,
+                              textDecoration: 'none',
+                              flexShrink:     0,
+                            }}
+                          >
+                            ?
+                          </a>
+                        )}
+                      </span>
                       <span style={{ color: 'var(--text)' }}>{call.toolName}</span>
                       <span>{call.model.split('-').pop()}</span>
                       <span style={{ textAlign: 'right', color: latencyColor(call.durationMs) }}>

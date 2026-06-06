@@ -7,7 +7,6 @@ import {
   IconListDetails,
   IconCreditCard,
   IconBook2,
-  IconExternalLink,
   IconBell,
 } from '@tabler/icons-react';
 
@@ -170,11 +169,9 @@ export default function DashboardLayout() {
           {/* Divider */}
           <div style={{ height: '1px', background: 'var(--border)', margin: '12px 16px' }} />
 
-          {/* Docs link */}
-          <a
-            href="https://docs.progue.ai"
-            target="_blank"
-            rel="noreferrer"
+          {/* Help & Docs link — internal docs site */}
+          <Link
+            to="/docs"
             style={{
               display:        'flex',
               alignItems:     'center',
@@ -188,9 +185,8 @@ export default function DashboardLayout() {
             }}
           >
             <IconBook2 size={17} />
-            Docs
-            <IconExternalLink size={12} style={{ marginLeft: 'auto' }} />
-          </a>
+            Help &amp; Docs
+          </Link>
 
           {/* Footer version */}
           <div style={{ marginTop: 'auto', padding: '0 19px' }}>
