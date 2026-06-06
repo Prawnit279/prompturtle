@@ -1,15 +1,25 @@
 import Anthropic from '@anthropic-ai/sdk';
 import type { Message } from '@anthropic-ai/sdk/resources/messages';
 
+import type { AirWaybill, ComplianceFlag, OceanBol, TruckBol } from '@prompturtle/shared';
 import { trackedCall, type ModelName } from '../../lib/cost-tracker.js';
 import logger from '../../lib/logger.js';
 import { BaseMCPServer } from '../BaseMCPServer.js';
 import type { ToolCallContext, ToolCallResult, ToolDefinition } from '../types.js';
+import { flagAirWaybillCompliance } from './parsers/air-waybill.js';
+import { flagOceanBolCompliance } from './parsers/ocean-bol.js';
+import { flagTruckBolCompliance } from './parsers/truck-bol.js';
 import {
+  AwbComplianceInput,
+  AirWaybillExtractedOutput,
+  BolTypeSchema,
   ExtractBolFieldsInput,
   ExtractBolFieldsOutput,
   FlagBolDiscrepanciesInput,
   FlagBolDiscrepanciesOutput,
+  OceanBolComplianceInput,
+  OceanBolExtractedOutput,
+  TruckBolComplianceInput,
   ValidateBolDataInput,
   ValidateBolDataOutput,
   registerBolSchemas,
@@ -51,24 +61,36 @@ export class BolProcessorMCP extends BaseMCPServer {
   readonly tools: ToolDefinition[] = [
     {
       name:        'extract_bol_fields',
-      description: 'Parse raw Bill of Lading text and extract structured fields including shipper, consignee, ports, dates, container numbers, and freight terms.',
+      description: 'Parse raw Bill of Lading text and extract structured fields. Supports Truck BOL, Air Waybill (AWB), and Ocean BOL — pass bolType to select the extraction mode.',
       inputSchema: {
         type: 'object',
         properties: {
           rawText:     { type: 'string', description: 'Raw BOL text content (OCR output, PDF text, or manual entry)' },
           carrierHint: { type: 'string', description: 'Optional carrier name hint to improve extraction accuracy' },
+          bolType: {
+            type: 'string',
+            enum: ['TRUCK_BOL', 'AIR_WAYBILL', 'OCEAN_BOL'],
+            default: 'TRUCK_BOL',
+            description: 'Document type. Determines field extraction rules.',
+          },
         },
         required: ['rawText'],
       },
     },
     {
       name:        'validate_bol_data',
-      description: 'Validate extracted BOL fields against supply chain business rules. Returns errors, warnings, and missing required fields.',
+      description: 'Validate extracted BOL fields against supply chain business rules. Returns errors, warnings, missing fields, and type-specific compliance flags.',
       inputSchema: {
         type: 'object',
         properties: {
           bolFields:  { type: 'object', description: 'Extracted BOL fields from extract_bol_fields' },
           strictness: { type: 'string', enum: ['lenient', 'standard', 'strict'], description: 'Validation strictness level (default: standard)' },
+          bolType: {
+            type: 'string',
+            enum: ['TRUCK_BOL', 'AIR_WAYBILL', 'OCEAN_BOL'],
+            default: 'TRUCK_BOL',
+            description: 'Document type. Determines validation and compliance rules.',
+          },
         },
         required: ['bolFields'],
       },
@@ -85,6 +107,12 @@ export class BolProcessorMCP extends BaseMCPServer {
             type: 'string',
             enum: ['PURCHASE_ORDER', 'SHIPMENT_RECORD', 'INVOICE'],
             description: 'Type of reference document',
+          },
+          bolType: {
+            type: 'string',
+            enum: ['TRUCK_BOL', 'AIR_WAYBILL', 'OCEAN_BOL'],
+            default: 'TRUCK_BOL',
+            description: 'Document type. Determines comparison rules.',
           },
         },
         required: ['bolFields', 'referenceDoc', 'referenceType'],
@@ -133,6 +161,8 @@ export class BolProcessorMCP extends BaseMCPServer {
   ): Promise<ToolCallResult> {
     const parsed = ExtractBolFieldsInput.parse(input);
 
+    const { prompt, outputSchema } = this.buildExtractionPrompt(parsed);
+
     const response = await trackedCall(
       {
         tenantId:  ctx.tenantId,
@@ -143,35 +173,80 @@ export class BolProcessorMCP extends BaseMCPServer {
       },
       () =>
         anthropic.messages.create({
-          // stream: false is the default — return type is Message, not Stream
           stream: false,
           model,
           max_tokens: 1024,
-          messages: [
-            {
-              role: 'user',
-              content: [
-                'Extract all structured fields from this Bill of Lading document.',
-                'Return ONLY valid JSON matching the schema. Omit any field you cannot determine.',
-                'Include extractionConfidence (0–1) based on text clarity.\n',
-                parsed.carrierHint ? `Carrier hint: ${parsed.carrierHint}\n` : '',
-                'BOL TEXT:\n',
-                parsed.rawText,
-                '\n\nReturn JSON with these optional fields (extractionConfidence is required):',
-                'bolNumber, shipperName, consigneeName, originPort, destinationPort,',
-                'carrierName, vesselName, departureDate (ISO 8601), arrivalDate (ISO 8601),',
-                'commodityCode, grossWeightKg (number), packageCount (integer),',
-                'containerNumbers (string array), freightTerms (PREPAID|COLLECT|THIRD_PARTY),',
-                'extractionConfidence (0–1)',
-              ]
-                .filter(Boolean)
-                .join('\n'),
-            },
-          ],
+          messages: [{ role: 'user', content: prompt }],
         }),
     );
 
-    return this.parseModelOutput(response, ExtractBolFieldsOutput, model);
+    return this.parseModelOutput(response, outputSchema, model);
+  }
+
+  private buildExtractionPrompt(
+    parsed: ExtractBolFieldsInput,
+  ): { prompt: string; outputSchema: { safeParse: (v: unknown) => { success: true; data: unknown } | { success: false; error: { flatten: () => unknown } } } } {
+    const hint = parsed.carrierHint ? `Carrier hint: ${parsed.carrierHint}\n` : '';
+    const header = [
+      `Extract all structured fields from this ${parsed.bolType.replace('_', ' ')} document.`,
+      'Return ONLY valid JSON. Omit any field you cannot determine.',
+      'Include extractionConfidence (0–1) based on text clarity.',
+      hint,
+      'DOCUMENT TEXT:\n',
+      parsed.rawText,
+    ].filter(Boolean).join('\n');
+
+    if (parsed.bolType === 'AIR_WAYBILL') {
+      return {
+        prompt: [
+          header,
+          '\nReturn JSON with these fields (extractionConfidence required):',
+          'awbNumber (IATA format XXX-XXXXXXXX), mawbNumber, hawbNumber,',
+          'airlineCode (2-char IATA), flightNumber,',
+          'originAirport (3-char IATA), destinationAirport (3-char IATA),',
+          'shipperName, shipperAddress, consigneeName, consigneeAddress, notifyPartyName,',
+          'pieces (integer), grossWeightKg (number), chargeableWeightKg (number),',
+          'commodity, declaredValue (number), currency,',
+          'freightCharges (prepaid|collect), incoterms,',
+          'specialHandling (array of codes, e.g. ["DGR","PER"]),',
+          'extractionConfidence (0–1)',
+        ].join('\n'),
+        outputSchema: AirWaybillExtractedOutput,
+      };
+    }
+
+    if (parsed.bolType === 'OCEAN_BOL') {
+      return {
+        prompt: [
+          header,
+          '\nReturn JSON with these fields (extractionConfidence required):',
+          'bolNumber, mblNumber, hblNumber, vesselName, voyageNumber,',
+          'portOfLoading (UN/LOCODE), portOfDischarge (UN/LOCODE),',
+          'placeOfReceipt, placeOfDelivery,',
+          'shipperName, shipperAddress, consigneeName, consigneeAddress, notifyPartyName,',
+          'containers (array of {containerNumber, sealNumber, type, weightKg, cbm}),',
+          'commodity, grossWeightKg (number), cbm (number),',
+          'freightTerms (prepaid|collect), incoterms, hsCode,',
+          'customsBroker ({name, licenseNumber, verified: boolean}),',
+          'extractionConfidence (0–1)',
+        ].join('\n'),
+        outputSchema: OceanBolExtractedOutput,
+      };
+    }
+
+    // TRUCK_BOL (default — backward-compatible)
+    return {
+      prompt: [
+        header,
+        '\nReturn JSON with these optional fields (extractionConfidence is required):',
+        'bolNumber, shipperName, consigneeName, originPort, destinationPort,',
+        'carrierName, vesselName, departureDate (ISO 8601), arrivalDate (ISO 8601),',
+        'commodityCode, grossWeightKg (number), packageCount (integer),',
+        'containerNumbers (string array), freightTerms (PREPAID|COLLECT|THIRD_PARTY),',
+        'extractionConfidence (0–1)',
+      ].join('\n'),
+      outputSchema: ExtractBolFieldsOutput,
+    };
   }
 
   private async validateBolData(
@@ -180,6 +255,8 @@ export class BolProcessorMCP extends BaseMCPServer {
     model: ModelName,
   ): Promise<ToolCallResult> {
     const parsed = ValidateBolDataInput.parse(input);
+
+    const requiredFields = this.requiredFieldsForType(parsed.bolType);
 
     const response = await trackedCall(
       {
@@ -198,7 +275,7 @@ export class BolProcessorMCP extends BaseMCPServer {
             {
               role: 'user',
               content: [
-                `Validate this Bill of Lading data against standard supply chain requirements.`,
+                `Validate this ${parsed.bolType.replace('_', ' ')} data against standard supply chain requirements.`,
                 `Strictness level: ${parsed.strictness}.\n`,
                 'BOL FIELDS:',
                 JSON.stringify(parsed.bolFields, null, 2),
@@ -206,15 +283,56 @@ export class BolProcessorMCP extends BaseMCPServer {
                 '- isValid (boolean)',
                 '- errors: array of { field, message, severity: "error"|"warning" }',
                 '- missingRequiredFields: array of field name strings\n',
-                'Required fields at "standard" strictness:',
-                'bolNumber, shipperName, consigneeName, originPort, destinationPort, carrierName.',
+                `Required fields at "standard" strictness: ${requiredFields.join(', ')}.`,
               ].join('\n'),
             },
           ],
         }),
     );
 
-    return this.parseModelOutput(response, ValidateBolDataOutput, model);
+    const result = this.parseModelOutput(response, ValidateBolDataOutput, model);
+
+    if (!result.success) return result;
+
+    // Append type-specific compliance flags computed by pure logic
+    const complianceFlags = this.runComplianceChecks(parsed.bolFields, parsed.bolType);
+    return {
+      ...result,
+      data: { ...(result.data as ValidateBolDataOutput), complianceFlags },
+    };
+  }
+
+  private requiredFieldsForType(bolType: BolTypeSchema): string[] {
+    if (bolType === 'AIR_WAYBILL') {
+      return ['awbNumber', 'airlineCode', 'originAirport', 'destinationAirport', 'pieces', 'grossWeightKg', 'chargeableWeightKg', 'commodity'];
+    }
+    if (bolType === 'OCEAN_BOL') {
+      return ['bolNumber', 'vesselName', 'voyageNumber', 'portOfLoading', 'portOfDischarge', 'commodity'];
+    }
+    return ['bolNumber', 'shipperName', 'consigneeName', 'originPort', 'destinationPort', 'carrierName'];
+  }
+
+  private runComplianceChecks(
+    bolFields: Record<string, unknown>,
+    bolType: BolTypeSchema,
+  ): ComplianceFlag[] {
+    if (bolType === 'AIR_WAYBILL') {
+      const awbResult = AwbComplianceInput.safeParse(bolFields);
+      return awbResult.success
+        ? flagAirWaybillCompliance(awbResult.data as AirWaybill)
+        : [];
+    }
+    if (bolType === 'OCEAN_BOL') {
+      const obolResult = OceanBolComplianceInput.safeParse(bolFields);
+      return obolResult.success
+        ? flagOceanBolCompliance(obolResult.data as OceanBol)
+        : [];
+    }
+    // TRUCK_BOL
+    const truckResult = TruckBolComplianceInput.safeParse(bolFields);
+    return truckResult.success
+      ? flagTruckBolCompliance(truckResult.data as TruckBol)
+      : [];
   }
 
   private async flagBolDiscrepancies(
@@ -241,7 +359,7 @@ export class BolProcessorMCP extends BaseMCPServer {
             {
               role: 'user',
               content: [
-                'Compare this Bill of Lading against the reference document and identify all discrepancies.\n',
+                `Compare this ${parsed.bolType.replace('_', ' ')} against the reference document and identify all discrepancies.\n`,
                 'BOL FIELDS:',
                 JSON.stringify(parsed.bolFields, null, 2),
                 `\nREFERENCE DOCUMENT (${parsed.referenceType}):`,

@@ -52,6 +52,12 @@ enum Phase2Feature {
   SUPPLIER_RISK
 }
 
+enum BolType {
+  TRUCK_BOL
+  AIR_WAYBILL
+  OCEAN_BOL
+}
+
 // ---------------------------------------------------------------------------
 // Models
 // ---------------------------------------------------------------------------
@@ -115,6 +121,7 @@ model ToolCall {
   cost_usd      Decimal  @db.Decimal(12, 6)
   latency_ms    Int
   success       Boolean  @default(true)
+  bol_type      BolType?
   created_at    DateTime @default(now())
 
   @@index([tenant_id, created_at])

@@ -2,6 +2,11 @@ import { z } from 'zod';
 
 import { registerToolSchema } from '../../../guardrails/rules/InputSchemaRule.js';
 
+// ---- Shared ----
+
+export const BolTypeSchema = z.enum(['TRUCK_BOL', 'AIR_WAYBILL', 'OCEAN_BOL']);
+export type BolTypeSchema = z.infer<typeof BolTypeSchema>;
+
 // ---- extract_bol_fields ----
 
 export const ExtractBolFieldsInput = z.object({
@@ -9,10 +14,13 @@ export const ExtractBolFieldsInput = z.object({
   rawText: z.string().min(10).max(50_000),
   /** Optional hint about the carrier format to improve extraction accuracy */
   carrierHint: z.string().max(100).optional(),
+  /** Document type — determines which fields are extracted. Defaults to TRUCK_BOL. */
+  bolType: BolTypeSchema.default('TRUCK_BOL'),
 });
 
 export type ExtractBolFieldsInput = z.infer<typeof ExtractBolFieldsInput>;
 
+/** Truck BOL extracted output (backward-compatible) */
 export const ExtractBolFieldsOutput = z.object({
   bolNumber:            z.string().optional(),
   shipperName:          z.string().optional(),
@@ -21,24 +29,103 @@ export const ExtractBolFieldsOutput = z.object({
   destinationPort:      z.string().optional(),
   carrierName:          z.string().optional(),
   vesselName:           z.string().optional(),
-  departureDate:        z.string().optional(),   // ISO 8601
-  arrivalDate:          z.string().optional(),   // ISO 8601
-  commodityCode:        z.string().optional(),   // HTS code if present
+  departureDate:        z.string().optional(),
+  arrivalDate:          z.string().optional(),
+  commodityCode:        z.string().optional(),
   grossWeightKg:        z.number().optional(),
   packageCount:         z.number().int().optional(),
   containerNumbers:     z.array(z.string()).optional(),
   freightTerms:         z.enum(['PREPAID', 'COLLECT', 'THIRD_PARTY']).optional(),
-  extractionConfidence: z.number().min(0).max(1), // 0–1
+  extractionConfidence: z.number().min(0).max(1),
 });
 
 export type ExtractBolFieldsOutput = z.infer<typeof ExtractBolFieldsOutput>;
 
+/** Air Waybill extracted output */
+export const AirWaybillExtractedOutput = z.object({
+  awbNumber:            z.string(),
+  mawbNumber:           z.string().optional(),
+  hawbNumber:           z.string().optional(),
+  airlineCode:          z.string(),
+  flightNumber:         z.string().optional(),
+  originAirport:        z.string(),
+  destinationAirport:   z.string(),
+  shipperName:          z.string().optional(),
+  shipperAddress:       z.string().optional(),
+  consigneeName:        z.string().optional(),
+  consigneeAddress:     z.string().optional(),
+  notifyPartyName:      z.string().optional(),
+  pieces:               z.number().int(),
+  grossWeightKg:        z.number(),
+  chargeableWeightKg:   z.number(),
+  commodity:            z.string(),
+  declaredValue:        z.number().optional(),
+  currency:             z.string().optional(),
+  freightCharges:       z.enum(['prepaid', 'collect']),
+  incoterms:            z.string().optional(),
+  specialHandling:      z.array(z.string()).optional(),
+  extractionConfidence: z.number().min(0).max(1),
+});
+
+export type AirWaybillExtractedOutput = z.infer<typeof AirWaybillExtractedOutput>;
+
+/** Ocean BOL extracted output */
+export const OceanBolExtractedOutput = z.object({
+  bolNumber:            z.string(),
+  mblNumber:            z.string().optional(),
+  hblNumber:            z.string().optional(),
+  vesselName:           z.string(),
+  voyageNumber:         z.string(),
+  portOfLoading:        z.string(),
+  portOfDischarge:      z.string(),
+  placeOfReceipt:       z.string().optional(),
+  placeOfDelivery:      z.string().optional(),
+  shipperName:          z.string().optional(),
+  shipperAddress:       z.string().optional(),
+  consigneeName:        z.string().optional(),
+  consigneeAddress:     z.string().optional(),
+  notifyPartyName:      z.string().optional(),
+  containers: z.array(
+    z.object({
+      containerNumber: z.string(),
+      sealNumber:      z.string().optional(),
+      type:            z.string(),
+      weightKg:        z.number(),
+      cbm:             z.number().optional(),
+    }),
+  ).default([]),
+  commodity:            z.string(),
+  grossWeightKg:        z.number(),
+  cbm:                  z.number().optional(),
+  freightTerms:         z.enum(['prepaid', 'collect']),
+  incoterms:            z.string().optional(),
+  hsCode:               z.string().optional(),
+  customsBroker: z.object({
+    name:          z.string(),
+    licenseNumber: z.string().optional(),
+    verified:      z.boolean(),
+  }).optional(),
+  extractionConfidence: z.number().min(0).max(1),
+});
+
+export type OceanBolExtractedOutput = z.infer<typeof OceanBolExtractedOutput>;
+
 // ---- validate_bol_data ----
 
+export const ComplianceFlagSchema = z.object({
+  code:     z.string(),
+  severity: z.enum(['info', 'warning', 'critical']),
+  message:  z.string(),
+  field:    z.string().optional(),
+});
+
+export type ComplianceFlagSchema = z.infer<typeof ComplianceFlagSchema>;
+
 export const ValidateBolDataInput = z.object({
-  bolFields: ExtractBolFieldsOutput,
-  /** Optional validation strictness — defaults to 'standard' */
+  /** Extracted BOL fields — shape varies by bolType */
+  bolFields:  z.record(z.unknown()),
   strictness: z.enum(['lenient', 'standard', 'strict']).default('standard'),
+  bolType:    BolTypeSchema.default('TRUCK_BOL'),
 });
 
 export type ValidateBolDataInput = z.infer<typeof ValidateBolDataInput>;
@@ -53,6 +140,8 @@ export const ValidateBolDataOutput = z.object({
     }),
   ),
   missingRequiredFields: z.array(z.string()),
+  /** Type-specific compliance flags computed by pure logic (not LLM) */
+  complianceFlags: z.array(ComplianceFlagSchema).default([]),
 });
 
 export type ValidateBolDataOutput = z.infer<typeof ValidateBolDataOutput>;
@@ -60,11 +149,11 @@ export type ValidateBolDataOutput = z.infer<typeof ValidateBolDataOutput>;
 // ---- flag_bol_discrepancies ----
 
 export const FlagBolDiscrepanciesInput = z.object({
-  bolFields: ExtractBolFieldsOutput,
-  /** Purchase order or shipment record to compare against */
+  bolFields:    z.record(z.unknown()),
   referenceDoc: z.record(z.unknown()).describe('PO or shipment record as key-value pairs'),
-  /** What type of reference document this is */
   referenceType: z.enum(['PURCHASE_ORDER', 'SHIPMENT_RECORD', 'INVOICE']),
+  /** Optional: inferred from bolFields.bolType if present */
+  bolType: BolTypeSchema.default('TRUCK_BOL'),
 });
 
 export type FlagBolDiscrepanciesInput = z.infer<typeof FlagBolDiscrepanciesInput>;
@@ -90,6 +179,41 @@ export const FlagBolDiscrepanciesOutput = z.object({
 });
 
 export type FlagBolDiscrepanciesOutput = z.infer<typeof FlagBolDiscrepanciesOutput>;
+
+// ---- Minimal shapes for compliance checkers ----
+
+/** Minimal Truck BOL shape needed to run compliance checks */
+export const TruckBolComplianceInput = z.object({
+  scacCode:  z.string().optional(),
+  proNumber: z.string().optional(),
+  consignee: z.object({
+    name:    z.string(),
+    address: z.string(),
+  }).optional(),
+});
+
+export const AwbComplianceInput = z.object({
+  awbNumber:          z.string(),
+  originAirport:      z.string(),
+  destinationAirport: z.string(),
+  pieces:             z.number().int(),
+  grossWeightKg:      z.number(),
+  chargeableWeightKg: z.number(),
+  commodity:          z.string(),
+  hawbNumber:         z.string().optional(),
+  specialHandling:    z.array(z.string()).optional(),
+});
+
+export const OceanBolComplianceInput = z.object({
+  portOfLoading:   z.string(),
+  portOfDischarge: z.string(),
+  containers: z.array(
+    z.object({ containerNumber: z.string() }),
+  ).default([]),
+  hblNumber:     z.string().optional(),
+  mblNumber:     z.string().optional(),
+  customsBroker: z.object({ verified: z.boolean() }).optional(),
+});
 
 // ---- Register schemas with guardrail engine ----
 
