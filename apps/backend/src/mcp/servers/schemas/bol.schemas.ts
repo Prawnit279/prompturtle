@@ -112,8 +112,33 @@ export type OceanBolExtractedOutput = z.infer<typeof OceanBolExtractedOutput>;
 
 // ---- validate_bol_data ----
 
+/**
+ * Mirrors ComplianceFlagCode in @prompturtle/shared (packages/shared/src/types/bol.ts).
+ * Kept as an explicit enum (rather than z.string()) so the wire contract stays in
+ * lockstep with the shared type — a typo'd or new code fails validation loudly
+ * instead of silently passing through as an arbitrary string.
+ */
+export const ComplianceFlagCodeSchema = z.enum([
+  // Truck BOL flags
+  'MISSING_SCAC',
+  'INVALID_PRO_NUMBER',
+  'MISSING_DELIVERY_ADDRESS',
+  // Air Waybill flags
+  'INVALID_AWB_NUMBER',
+  'MISSING_HAWB',
+  'INVALID_AIRPORT_CODE',
+  'DANGEROUS_GOODS_UNDECLARED',
+  'WEIGHT_DISCREPANCY',
+  // Ocean BOL flags
+  'MISSING_CONTAINER_NUMBERS',
+  'CONTAINER_FORMAT_INVALID',
+  'MISSING_PORT_CODES',
+  'HBL_WITHOUT_MBL',
+  'CUSTOMS_BROKER_UNVERIFIED',
+]);
+
 export const ComplianceFlagSchema = z.object({
-  code:     z.string(),
+  code:     ComplianceFlagCodeSchema,
   severity: z.enum(['info', 'warning', 'critical']),
   message:  z.string(),
   field:    z.string().optional(),

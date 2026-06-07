@@ -139,20 +139,20 @@ describe('flagAirWaybillCompliance — INVALID_AIRPORT_CODE', () => {
 });
 
 describe('flagAirWaybillCompliance — MISSING_HAWB', () => {
-  it('flags multi-piece AWB with no HAWB', () => {
-    const { hawbNumber: _h, ...base } = makeAwb();
-    const flags = flagAirWaybillCompliance({ ...base, pieces: 5 });
+  it('flags AWB referencing a Master AWB with no House AWB number', () => {
+    const flags = flagAirWaybillCompliance(makeAwb({ mawbNumber: 'MAWB-12345' }));
     expect(flags.some((f) => f.code === 'MISSING_HAWB')).toBe(true);
   });
 
-  it('does not flag single-piece AWB without HAWB', () => {
-    const { hawbNumber: _h, ...base } = makeAwb();
-    const flags = flagAirWaybillCompliance({ ...base, pieces: 1 });
+  it('does not flag a standalone AWB with no Master AWB reference', () => {
+    const flags = flagAirWaybillCompliance(makeAwb());
     expect(flags.some((f) => f.code === 'MISSING_HAWB')).toBe(false);
   });
 
-  it('does not flag multi-piece AWB that has a HAWB', () => {
-    const flags = flagAirWaybillCompliance(makeAwb({ pieces: 10, hawbNumber: 'HAWB-001' }));
+  it('does not flag an AWB that has both Master and House AWB numbers', () => {
+    const flags = flagAirWaybillCompliance(
+      makeAwb({ mawbNumber: 'MAWB-12345', hawbNumber: 'HAWB-001' }),
+    );
     expect(flags.some((f) => f.code === 'MISSING_HAWB')).toBe(false);
   });
 });

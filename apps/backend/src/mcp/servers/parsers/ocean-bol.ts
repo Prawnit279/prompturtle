@@ -70,7 +70,9 @@ export function flagOceanBolCompliance(bol: OceanBol): ComplianceFlag[] {
     });
   }
 
-  // Critical — triggers customs_flag guardrail
+  // Critical — surfaced to API consumers via validate_bol_data's complianceFlags array.
+  // Note: this is NOT enforced by a GuardrailEngine rule (no such rule exists for BOL
+  // compliance) — it's a pure-logic flag appended to the tool output for the caller to act on.
   if (bol.customsBroker && !bol.customsBroker.verified) {
     flags.push({
       code: 'CUSTOMS_BROKER_UNVERIFIED',

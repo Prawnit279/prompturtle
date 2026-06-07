@@ -95,6 +95,42 @@ describe('trackedCall', () => {
     expect(createArg?.output_tokens).toBe(50);
   });
 
+  it('writes bol_type to the ToolCall record when the caller supplies it', async () => {
+    await trackedCall(
+      { ...defaultOptions, bolType: 'AIR_WAYBILL' },
+      async () => makeAnthropicResponse(100, 50),
+    );
+    const createArg = mockPrisma.toolCall.create.mock.calls[0]?.[0]?.data as Record<
+      string,
+      unknown
+    >;
+    expect(createArg?.bol_type).toBe('AIR_WAYBILL');
+  });
+
+  it('writes bol_type as null when the caller omits it (non-BOL servers)', async () => {
+    await trackedCall(defaultOptions, async () => makeAnthropicResponse(100, 50));
+    const createArg = mockPrisma.toolCall.create.mock.calls[0]?.[0]?.data as Record<
+      string,
+      unknown
+    >;
+    expect(createArg?.bol_type).toBeNull();
+  });
+
+  it('writes bol_type as null on a failed call when the caller omits it', async () => {
+    const boom = new Error('network failure');
+    await expect(
+      trackedCall(defaultOptions, async () => {
+        throw boom;
+      }),
+    ).rejects.toThrow('network failure');
+
+    const createArg = mockPrisma.toolCall.create.mock.calls[0]?.[0]?.data as Record<
+      string,
+      unknown
+    >;
+    expect(createArg?.bol_type).toBeNull();
+  });
+
   it('writes failed ToolCall record and re-throws on error', async () => {
     const boom = new Error('network failure');
     await expect(

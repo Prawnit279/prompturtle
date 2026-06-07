@@ -48,11 +48,14 @@ export function flagAirWaybillCompliance(bol: AirWaybill): ComplianceFlag[] {
     });
   }
 
-  if (bol.pieces > 1 && !bol.hawbNumber) {
+  // HAWBs only apply to consolidated shipments — the presence of a Master AWB
+  // number is the actual signal that this document is a house waybill under a
+  // consolidation (piece count alone says nothing about consolidation status).
+  if (bol.mawbNumber && !bol.hawbNumber) {
     flags.push({
       code: 'MISSING_HAWB',
       severity: 'warning',
-      message: 'Multi-piece AWB has no House AWB (HAWB) number',
+      message: 'Shipment references a Master AWB but has no House AWB (HAWB) number',
       field: 'hawbNumber',
     });
   }

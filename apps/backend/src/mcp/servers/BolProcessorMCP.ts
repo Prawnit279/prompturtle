@@ -170,6 +170,7 @@ export class BolProcessorMCP extends BaseMCPServer {
         toolName:  'extract_bol_fields',
         model,
         tier:      ctx.tier,
+        bolType:   parsed.bolType,
       },
       () =>
         anthropic.messages.create({
@@ -265,6 +266,7 @@ export class BolProcessorMCP extends BaseMCPServer {
         toolName:  'validate_bol_data',
         model,
         tier:      ctx.tier,
+        bolType:   parsed.bolType,
       },
       () =>
         anthropic.messages.create({
@@ -349,6 +351,7 @@ export class BolProcessorMCP extends BaseMCPServer {
         toolName:  'flag_bol_discrepancies',
         model,
         tier:      ctx.tier,
+        bolType:   parsed.bolType,
       },
       () =>
         anthropic.messages.create({
