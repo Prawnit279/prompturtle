@@ -10,3 +10,5 @@ export * from './types/billing';
 export * from './types/audit';
 export * from './types/approval';
 export * from './types/bol';
+export * from './types/risk';
+export * from './types/webhook';

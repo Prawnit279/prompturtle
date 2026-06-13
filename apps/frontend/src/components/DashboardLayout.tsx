@@ -8,13 +8,15 @@ import {
   IconCreditCard,
   IconBook2,
   IconBell,
+  IconWebhook,
 } from '@tabler/icons-react';
 
 const NAV = [
-  { to: '/dashboard',         label: 'Overview', icon: IconChartBar    },
-  { to: '/dashboard/keys',    label: 'API Keys', icon: IconKey         },
-  { to: '/dashboard/logs',    label: 'Logs',     icon: IconListDetails },
-  { to: '/dashboard/billing', label: 'Billing',  icon: IconCreditCard  },
+  { to: '/dashboard',          label: 'Overview', icon: IconChartBar    },
+  { to: '/dashboard/keys',     label: 'API Keys', icon: IconKey         },
+  { to: '/dashboard/logs',     label: 'Logs',     icon: IconListDetails },
+  { to: '/dashboard/webhooks', label: 'Webhooks', icon: IconWebhook     },
+  { to: '/dashboard/billing',  label: 'Billing',  icon: IconCreditCard  },
 ] as const;
 
 export default function DashboardLayout() {

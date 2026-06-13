@@ -17,6 +17,7 @@ vi.mock('../../lib/db.js', () => ({
       findUnique: vi.fn(),
       findMany:   vi.fn(),
       update:     vi.fn(),
+      updateMany: vi.fn(),
     },
     approvalDecision: {
       create: vi.fn(),
@@ -27,6 +28,10 @@ vi.mock('../../lib/db.js', () => ({
 
 vi.mock('../../lib/audit.js', () => ({
   writeAuditEvent: vi.fn().mockResolvedValue(undefined),
+}));
+
+vi.mock('../webhook-service.js', () => ({
+  dispatch: vi.fn().mockResolvedValue(undefined),
 }));
 
 vi.mock('../../lib/logger.js', () => ({
@@ -42,6 +47,7 @@ vi.mock('../../lib/logger.js', () => ({
 
 import { prisma } from '../../lib/db.js';
 import { writeAuditEvent } from '../../lib/audit.js';
+import { dispatch } from '../webhook-service.js';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const mockRequest  = (prisma.approvalRequest as any);
@@ -50,6 +56,7 @@ const mockDecision = (prisma.approvalDecision as any);
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const mockTx       = (prisma as any).$transaction as ReturnType<typeof vi.fn>;
 const mockAudit    = writeAuditEvent as ReturnType<typeof vi.fn>;
+const mockDispatch = dispatch as ReturnType<typeof vi.fn>;
 
 // ---- Helpers ----
 
@@ -87,7 +94,8 @@ beforeEach(() => {
 
   mockRequest.create.mockResolvedValue(makeRequestRow());
   mockRequest.findUnique.mockResolvedValue(makeRequestRow());
-  mockRequest.findMany.mockResolvedValue([makeRequestRow()]);
+  // Recent date so the default pending row is not auto-expired by the 72h rule.
+  mockRequest.findMany.mockResolvedValue([makeRequestRow({ created_at: new Date() })]);
   mockRequest.update.mockResolvedValue(makeRequestRow({ status: ApprovalStatus.APPROVED }));
   mockDecision.create.mockResolvedValue(makeDecisionRow());
 
@@ -298,6 +306,38 @@ describe('recordDecision', () => {
     expect(result.requestId).toBe(REQ_ID);
     expect(result.note).toBeNull();
   });
+
+  it('dispatches approval.approved when a request is approved', async () => {
+    await recordDecision({
+      requestId: REQ_ID,
+      tenantId:  TENANT,
+      decidedBy: 'user-clerk-001',
+      decision:  ApprovalStatus.APPROVED,
+    });
+
+    expect(mockDispatch).toHaveBeenCalledWith(
+      TENANT,
+      'approval.approved',
+      expect.objectContaining({ approvalId: REQ_ID, status: ApprovalStatus.APPROVED }),
+    );
+  });
+
+  it('dispatches decision.escalated when a request is escalated', async () => {
+    mockRequest.update.mockResolvedValueOnce(makeRequestRow({ status: ApprovalStatus.ESCALATED }));
+
+    await recordDecision({
+      requestId: REQ_ID,
+      tenantId:  TENANT,
+      decidedBy: 'user-clerk-001',
+      decision:  ApprovalStatus.ESCALATED,
+    });
+
+    expect(mockDispatch).toHaveBeenCalledWith(
+      TENANT,
+      'decision.escalated',
+      expect.objectContaining({ approvalId: REQ_ID }),
+    );
+  });
 });
 
 // ===========================================================================
@@ -335,5 +375,43 @@ describe('getPendingApprovals', () => {
 
     expect(results[0]?.tenantId).toBe(TENANT);
     expect(results[0]?.id).toBe(REQ_ID);
+  });
+
+  it('auto-expires pending requests older than 72h and dispatches approval.expired', async () => {
+    const stale = new Date(Date.now() - 73 * 60 * 60 * 1000);
+    mockRequest.findMany.mockResolvedValueOnce([makeRequestRow({ created_at: stale })]);
+    mockRequest.updateMany.mockResolvedValueOnce({ count: 1 });
+
+    const results = await getPendingApprovals(TENANT);
+
+    // Expired requests are excluded from the returned pending list.
+    expect(results).toHaveLength(0);
+    // Conditional update guards against concurrent double-expiry.
+    expect(mockRequest.updateMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: REQ_ID, status: ApprovalStatus.PENDING },
+        data:  { status: ApprovalStatus.EXPIRED },
+      }),
+    );
+    expect(mockAudit).toHaveBeenCalledWith(
+      expect.objectContaining({ entityType: 'approval_request', entityId: REQ_ID }),
+    );
+    expect(mockDispatch).toHaveBeenCalledWith(
+      TENANT,
+      'approval.expired',
+      expect.objectContaining({ approvalId: REQ_ID }),
+    );
+  });
+
+  it('does not dispatch approval.expired when a concurrent caller already expired it', async () => {
+    const stale = new Date(Date.now() - 73 * 60 * 60 * 1000);
+    mockRequest.findMany.mockResolvedValueOnce([makeRequestRow({ created_at: stale })]);
+    mockRequest.updateMany.mockResolvedValueOnce({ count: 0 }); // lost the race
+
+    const results = await getPendingApprovals(TENANT);
+
+    expect(results).toHaveLength(0);
+    expect(mockDispatch).not.toHaveBeenCalled();
+    expect(mockAudit).not.toHaveBeenCalled();
   });
 });

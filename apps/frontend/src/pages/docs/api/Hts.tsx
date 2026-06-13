@@ -14,9 +14,10 @@ export default function ApiHts() {
             result in incorrect duty payments.
           </p>
           <p>
-            HTS Classifier takes a plain-language product description and returns the correct HS code, the confidence
-            level in that classification, and the applicable duty rate. For EU-bound goods, it also checks whether the
-            Carbon Border Adjustment Mechanism (CBAM) applies.
+            HTS Classifier takes a plain-language product description, searches a database of HTS codes by semantic
+            similarity, and uses AI to pick the best match — returning the code, a confidence score, the reasoning
+            behind it, and up to three alternative candidates. It can also validate an existing classification against
+            a product description, or look up the duty rate for a known code with a pure database lookup.
           </p>
           <p>
             If your customers ship goods internationally and need automatic customs classification, this is the module
@@ -27,42 +28,45 @@ export default function ApiHts() {
     >
       <H2>Overview</H2>
       <Callout>
-        Namespace: <Code>progue.hts</Code> · Module: <Code>HTS_CLASSIFICATION</Code> · External APIs: WCO HS database,
-        CBP · <strong>[LIVE]</strong>
+        Namespace: <Code>progue.hts</Code> · Module: <Code>HTS_CLASSIFICATION</Code> · External APIs: none ·{' '}
+        <strong>[LIVE]</strong>
       </Callout>
 
       <H2>
-        <Code>classify</Code> → <Code>classify_hs_code</Code>
+        <Code>classify_product</Code>
       </H2>
-      <P>Classify a goods description to an HS code with a confidence score.</P>
-      <CodeBlock language="ts">{`const res = await progue.hts.classify({
-  description: 'Industrial servo motor, 7.5kW',
-  origin:      'DE',
-  destination: 'US',
+      <P>Classify a product description to an HTS code with a confidence score and reasoning.</P>
+      <CodeBlock language="ts">{`const result = await progue.hts.classify_product({
+  productDescription: 'Industrial servo motor, 7.5kW, water-cooled',
+  context:            'Used in CNC machining equipment',
 });
-// { hsCode: '8501.52', confidence: 0.94, dutyRate: 0.025, auditId }`}</CodeBlock>
+// → { htsCode, description, chapter, dutyRate, confidence, reasoning,
+//     alternativeCodes: [{ htsCode, description, confidence, reason }],
+//     warnings? }`}</CodeBlock>
       <P>
         A confidence score below your configured threshold (Growth/Enterprise) can trigger a guardrail that routes the
         classification to a human approver rather than proceeding automatically.
       </P>
 
       <H2>
-        <Code>getTariffRate</Code> → <Code>get_tariff_rate</Code>
+        <Code>validate_classification</Code>
       </H2>
-      <P>Look up the duty/tariff rate for an HS code and destination.</P>
-      <CodeBlock language="ts">{`const { dutyRate, basis } = await progue.hts.getTariffRate({
-  hsCode:      '8501.52',
-  destination: 'US',
-});`}</CodeBlock>
+      <P>Check whether an existing HTS code matches a product description and surface compliance issues.</P>
+      <CodeBlock language="ts">{`const result = await progue.hts.validate_classification({
+  htsCode:            '8501.52',
+  productDescription: 'Industrial servo motor, 7.5kW, water-cooled',
+});
+// → { isValid, confidence, issues: [{ severity, message }],
+//     suggestedCode?, explanation }`}</CodeBlock>
 
       <H2>
-        <Code>checkCbam</Code> → <Code>check_cbam_applicability</Code>
+        <Code>get_duty_rates</Code>
       </H2>
-      <P>Check whether the EU Carbon Border Adjustment Mechanism applies for EU-bound goods.</P>
-      <CodeBlock language="ts">{`const { cbamApplicable, notes } = await progue.hts.checkCbam({
-  hsCode:      '7208.10',
-  destination: 'DE',
-});`}</CodeBlock>
+      <P>Look up the duty rate for a known HTS code — a pure database lookup, no model involved.</P>
+      <CodeBlock language="ts">{`const { dutyRate, chapter, found } = await progue.hts.get_duty_rates({
+  htsCode: '8501.52',
+});
+// → { htsCode, description, dutyRate, unit?, chapter, found }`}</CodeBlock>
     </DocsPage>
   );
 }

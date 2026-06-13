@@ -42,3 +42,58 @@ export interface LogsResponse {
   limit:  number;
   pages:  number;
 }
+
+// ---- Webhooks ----
+
+export type WebhookEventType =
+  | 'approval.approved'
+  | 'approval.rejected'
+  | 'approval.expired'
+  | 'decision.halted'
+  | 'decision.escalated'
+  | 'usage.threshold_reached';
+
+export const WEBHOOK_EVENTS: readonly WebhookEventType[] = [
+  'approval.approved',
+  'approval.rejected',
+  'approval.expired',
+  'decision.halted',
+  'decision.escalated',
+  'usage.threshold_reached',
+];
+
+export interface WebhookLastDelivery {
+  success:     boolean;
+  statusCode?: number;
+  createdAt:   string;
+}
+
+export interface Webhook {
+  id:           string;
+  url:          string;
+  events:       WebhookEventType[];
+  description?: string;
+  isActive:     boolean;
+  createdAt:    string;
+  secret?:      string; // only present in the creation response
+  lastDelivery?: WebhookLastDelivery;
+}
+
+export interface WebhookDelivery {
+  id:           string;
+  webhookId:    string;
+  event:        string;
+  statusCode?:  number;
+  success:      boolean;
+  attemptCount: number;
+  deliveredAt?: string;
+  createdAt:    string;
+}
+
+export interface WebhookDeliveriesResponse {
+  deliveries: WebhookDelivery[];
+  total:      number;
+  page:       number;
+  limit:      number;
+  pages:      number;
+}

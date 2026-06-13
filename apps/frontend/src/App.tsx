@@ -6,6 +6,7 @@ import DashboardLayout      from './components/DashboardLayout';
 import Overview             from './pages/Overview';
 import ApiKeys              from './pages/ApiKeys';
 import CallLogs             from './pages/CallLogs';
+import Webhooks            from './pages/Webhooks';
 import Billing              from './pages/Billing';
 import Landing              from './pages/Landing';
 import PricingPage          from './pages/PricingPage';
@@ -29,6 +30,7 @@ import ApiCarrier              from './pages/docs/api/Carrier';
 import ApiHts                  from './pages/docs/api/Hts';
 import ApiApproval             from './pages/docs/api/Approval';
 import ApiAudit                from './pages/docs/api/Audit';
+import ApiRisk                 from './pages/docs/api/Risk';
 import ReferenceErrors         from './pages/docs/reference/Errors';
 import ReferenceRateLimits     from './pages/docs/reference/RateLimits';
 import ReferenceVersioning     from './pages/docs/reference/Versioning';
@@ -74,6 +76,7 @@ export default function App() {
           <Route path="api/hts"                  element={<ApiHts />} />
           <Route path="api/approval"             element={<ApiApproval />} />
           <Route path="api/audit"                element={<ApiAudit />} />
+          <Route path="api/risk"                 element={<ApiRisk />} />
           <Route path="reference/errors"         element={<ReferenceErrors />} />
           <Route path="reference/rate-limits"    element={<ReferenceRateLimits />} />
           <Route path="reference/versioning"     element={<ReferenceVersioning />} />
@@ -110,10 +113,11 @@ export default function App() {
             </ClerkProtectedLayout>
           }
         >
-          <Route index          element={<Overview />} />
-          <Route path="keys"    element={<ApiKeys />}  />
-          <Route path="logs"    element={<CallLogs />} />
-          <Route path="billing" element={<Billing />}  />
+          <Route index           element={<Overview />} />
+          <Route path="keys"     element={<ApiKeys />}  />
+          <Route path="logs"     element={<CallLogs />} />
+          <Route path="webhooks" element={<Webhooks />} />
+          <Route path="billing"  element={<Billing />}  />
         </Route>
 
         <Route path="*" element={<Navigate to="/" replace />} />

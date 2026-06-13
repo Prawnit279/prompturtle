@@ -44,6 +44,7 @@ const SECTIONS: NavSection[] = [
       { label: 'HTS Classifier', to: '/docs/api/hts' },
       { label: 'Approval Workflow', to: '/docs/api/approval' },
       { label: 'Audit Trail', to: '/docs/api/audit' },
+      { label: 'Shipment Risk Score', to: '/docs/api/risk' },
     ],
   },
   {

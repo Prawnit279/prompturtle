@@ -9,10 +9,9 @@ export default function ApiCarrier() {
       plainEnglish={
         <>
           <p>
-            This module compares shipping rates across FedEx, UPS, and XPO for a given shipment, estimates transit
-            times, checks whether a carrier serves the lane, and scores each carrier against your account&rsquo;s rules.
-            The score comes with a rationale and an audit ID — so when your agent recommends a carrier, the reasoning is
-            on record.
+            This module produces structured freight rate estimates for a shipment, scores and ranks the resulting
+            quotes on cost and speed, and recommends a carrier weighted by your priorities and constraints — with a
+            rationale your agent can act on and an audit trail behind it.
           </p>
           <p>
             If you want your AI to recommend carriers based on cost, speed, and your business rules (rather than just
@@ -23,51 +22,52 @@ export default function ApiCarrier() {
     >
       <H2>Overview</H2>
       <Callout>
-        Namespace: <Code>progue.carrier</Code> · Module: <Code>CARRIER_RATES</Code> · External APIs: FedEx, UPS, XPO ·{' '}
+        Namespace: <Code>progue.carrier</Code> · Module: <Code>CARRIER_RATES</Code> · External APIs: none ·{' '}
         <strong>[LIVE]</strong>
       </Callout>
 
       <H2>
-        <Code>compareRates</Code> → <Code>compare_rates</Code>
+        <Code>get_carrier_rates</Code>
       </H2>
-      <P>Compare rates across configured carriers for a shipment.</P>
-      <CodeBlock language="ts">{`const { quotes } = await progue.carrier.compareRates({
-  origin:       'Chicago, IL',
-  destination:  'Dallas, TX',
-  weightKg:     1200,
-  serviceLevel: 'standard',
+      <P>Generate structured freight rate estimates for a shipment across available carriers.</P>
+      <CodeBlock language="ts">{`const rates = await progue.carrier.get_carrier_rates({
+  originCountry:        'US',
+  destinationCountry:   'DE',
+  weightKg:             1200,
+  requiredServiceLevel: 'STANDARD',
 });
-// quotes: [{ carrier, service, amount, currency, transitDays }]`}</CodeBlock>
+// → { quotes: [{ carrierId, carrierName, serviceLevel, totalCostUsd,
+//       transitDays, currency, … }],
+//     currency, quotedAt, cheapestCarrierId?, fastestCarrierId? }`}</CodeBlock>
 
       <H2>
-        <Code>getTransitTimes</Code> → <Code>get_transit_times</Code>
+        <Code>compare_carrier_options</Code>
       </H2>
-      <P>Estimated transit times per carrier for a lane.</P>
-      <CodeBlock language="ts">{`const { transit } = await progue.carrier.getTransitTimes({
-  origin: 'Chicago, IL',
-  destination: 'Dallas, TX',
-});`}</CodeBlock>
+      <P>Score and rank a set of carrier quotes on cost and speed, with pros and cons for each.</P>
+      <CodeBlock language="ts">{`const { comparison, summary } = await progue.carrier.compare_carrier_options({
+  quotes: rates.quotes,
+  shipmentContext: {
+    weightKg:           1200,
+    destinationCountry: 'DE',
+  },
+});
+// → comparison: [{ carrierId, carrierName, costScore, speedScore,
+//     overallScore, pros: [...], cons: [...] }]`}</CodeBlock>
 
       <H2>
-        <Code>checkCarrierAvailability</Code> → <Code>check_carrier_availability</Code>
-      </H2>
-      <P>Whether a carrier services a lane and shipment profile.</P>
-      <CodeBlock language="ts">{`const { available } = await progue.carrier.checkCarrierAvailability({
-  carrier:     'XPO',
-  origin:      'Chicago, IL',
-  destination: 'Dallas, TX',
-  weightKg:    1200,
-});`}</CodeBlock>
-
-      <H2>
-        <Code>scoreCarrier</Code> → <Code>score_carrier</Code>
+        <Code>recommend_carrier</Code>
       </H2>
       <P>
-        Score a carrier against the tenant&rsquo;s rules — cost, transit, reliability, approval status. Triggers{' '}
-        <Code>new_carrier_check</Code> if the carrier isn&rsquo;t on the approved list.
+        Produce a weighted carrier recommendation given cost/speed priorities and business constraints — with a
+        rationale and up to two alternatives.
       </P>
-      <CodeBlock language="ts">{`const score = await progue.carrier.scoreCarrier({ carrier: 'XPO', quote });
-// { score, rationale, decision, guardrailsFired, auditId }`}</CodeBlock>
+      <CodeBlock language="ts">{`const rec = await progue.carrier.recommend_carrier({
+  quotes:      rates.quotes,
+  priorities:  { costWeight: 0.6, speedWeight: 0.4 },
+  constraints: { maxBudgetUsd: 5000 },
+});
+// → { recommendedCarrierId, recommendedCarrierName, confidence, rationale,
+//     alternatives: [{ carrierId, carrierName, reason }], warnings? }`}</CodeBlock>
     </DocsPage>
   );
 }
