@@ -12,7 +12,7 @@ export default function Footer(): React.ReactElement {
         <div className="footer-grid">
           <div>
             <div className="wm">
-              <ProgueLogo height={26} />
+              <ProgueLogo height={34} />
             </div>
             <div className="tag">{c.tag}</div>
           </div>

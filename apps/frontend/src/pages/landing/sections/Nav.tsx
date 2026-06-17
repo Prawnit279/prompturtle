@@ -20,7 +20,7 @@ export default function Nav() {
     >
       <div className="max-w-5xl mx-auto w-full px-6 flex items-center justify-between">
         <Link to="/" className="no-underline" style={{ lineHeight: 0 }}>
-          <ProgueLogo height={32} />
+          <ProgueLogo height={44} />
         </Link>
 
         <nav className="hidden md:flex items-center gap-7">
