@@ -19,7 +19,7 @@ export default function Nav(): React.ReactElement {
     <nav className={`nav${scrolled ? ' scrolled' : ''}`}>
       <div className="rail">
         <Link to="/" className="wm" style={{ lineHeight: 0 }}>
-          <ProgueLogo height={32} />
+          <ProgueLogo height={44} />
         </Link>
         <div className="nav-links">
           {c.links.map(link => (

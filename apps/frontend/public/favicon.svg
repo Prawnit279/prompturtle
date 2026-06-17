@@ -11,9 +11,6 @@
     </radialGradient>
   </defs>
 
-  <!-- dark navy background so it reads on any browser chrome -->
-  <rect width="200" height="200" fill="#0A0E1C"/>
-
   <!-- depth & bloom glow -->
   <circle cx="100" cy="100" r="86" fill="url(#glow)"/>
 

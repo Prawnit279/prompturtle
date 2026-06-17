@@ -86,7 +86,7 @@ export default function DocsLayout() {
         {/* Wordmark */}
         <div className="h-14 flex items-center px-6 border-b border-[var(--border)]">
           <Link to="/" className="no-underline" style={{ lineHeight: 0 }}>
-            <ProgueLogo height={28} />
+            <ProgueLogo height={38} />
           </Link>
           <span className="ml-2 font-[family-name:var(--mono)] text-[10px] uppercase tracking-[0.1em] text-[var(--text-3)]">
             Docs

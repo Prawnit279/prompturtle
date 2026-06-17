@@ -80,7 +80,7 @@ export default function DashboardLayout() {
         }}
       >
         {/* Wordmark */}
-        <ProgueLogo height={28} />
+        <ProgueLogo height={38} />
 
         {/* Org Switcher pill */}
         <div style={{ marginLeft: '30px' }}>

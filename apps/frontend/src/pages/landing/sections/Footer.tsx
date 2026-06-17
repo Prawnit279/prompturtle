@@ -13,7 +13,7 @@ export default function Footer() {
           {/* Wordmark + tagline */}
           <div className="col-span-2 md:col-span-1">
             <Link to="/" className="no-underline" style={{ lineHeight: 0 }}>
-              <ProgueLogo height={26} />
+              <ProgueLogo height={34} />
             </Link>
             <p className="mt-2 text-sm leading-relaxed" style={{ color: 'var(--text-3)' }}>
               {footer.tagline}
