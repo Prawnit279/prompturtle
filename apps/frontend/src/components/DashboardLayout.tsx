@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link, useLocation, Outlet } from 'react-router-dom';
+import ProgueLogo from './ProgueLogo';
 import { OrganizationSwitcher, UserButton, useAuth, useOrganizationList } from '@clerk/clerk-react';
 import {
   IconChartBar,
@@ -8,13 +9,15 @@ import {
   IconCreditCard,
   IconBook2,
   IconBell,
+  IconWebhook,
 } from '@tabler/icons-react';
 
 const NAV = [
-  { to: '/dashboard',         label: 'Overview', icon: IconChartBar    },
-  { to: '/dashboard/keys',    label: 'API Keys', icon: IconKey         },
-  { to: '/dashboard/logs',    label: 'Logs',     icon: IconListDetails },
-  { to: '/dashboard/billing', label: 'Billing',  icon: IconCreditCard  },
+  { to: '/dashboard',          label: 'Overview', icon: IconChartBar    },
+  { to: '/dashboard/keys',     label: 'API Keys', icon: IconKey         },
+  { to: '/dashboard/logs',     label: 'Logs',     icon: IconListDetails },
+  { to: '/dashboard/webhooks', label: 'Webhooks', icon: IconWebhook     },
+  { to: '/dashboard/billing',  label: 'Billing',  icon: IconCreditCard  },
 ] as const;
 
 export default function DashboardLayout() {
@@ -77,9 +80,7 @@ export default function DashboardLayout() {
         }}
       >
         {/* Wordmark */}
-        <span style={{ fontSize: '16px', fontWeight: 500, letterSpacing: '-0.02em', fontFamily: 'var(--sans)' }}>
-          progue<span style={{ color: 'var(--brand)' }}>.</span>
-        </span>
+        <ProgueLogo height={28} />
 
         {/* Org Switcher pill */}
         <div style={{ marginLeft: '30px' }}>

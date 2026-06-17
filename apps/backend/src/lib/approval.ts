@@ -1,16 +1,31 @@
 import type { InputJsonValue } from '@prisma/client/runtime/library';
 
 import { AuditAction, ApprovalStatus, ApprovalTrigger } from '@prompturtle/shared';
+import type { WebhookEventType } from '@prompturtle/shared';
 
 import { prisma } from './db.js';
 import logger from './logger.js';
 import { writeAuditEvent } from './audit.js';
+import { dispatch } from './webhook-service.js';
 
 // ---- Boundary conditions for trigger evaluation ----
 const THRESHOLDS = {
   HIGH_SHIPMENT_COST_USD: 10_000,
   LOW_HTS_CONFIDENCE:     0.7,
 } as const;
+
+/** A pending approval auto-expires once it is older than this. */
+const APPROVAL_EXPIRY_MS = 72 * 60 * 60 * 1000; // 72 hours
+
+/** Maps a recorded decision onto the outbound webhook event it fires. */
+const DECISION_EVENT: Record<
+  ApprovalStatus.APPROVED | ApprovalStatus.REJECTED | ApprovalStatus.ESCALATED,
+  WebhookEventType
+> = {
+  [ApprovalStatus.APPROVED]:  'approval.approved',
+  [ApprovalStatus.REJECTED]:  'approval.rejected',
+  [ApprovalStatus.ESCALATED]: 'decision.escalated',
+};
 
 // ---- Public interfaces ----
 
@@ -174,11 +189,25 @@ export async function recordDecision(params: {
 
   logger.info({ tenantId, requestId, decidedBy, decision }, 'approval.decided');
 
+  // Fire the outbound webhook for this resolution — after the audit write, never
+  // before. Fire-and-forget: dispatch never throws and must not block the caller.
+  void dispatch(tenantId, DECISION_EVENT[decision], {
+    approvalId: requestId,
+    status:     decision,
+    decidedBy,
+    note:       note ?? null,
+  });
+
   return mapDecision(decisionRow);
 }
 
 /**
  * Returns all PENDING approval requests for a tenant, ordered oldest-first.
+ *
+ * Side effect: any pending request older than 72 hours is lazily auto-expired
+ * on read — its status is set to EXPIRED, an audit event is written, and an
+ * `approval.expired` webhook is dispatched. Expired requests are excluded from
+ * the returned list.
  */
 export async function getPendingApprovals(
   tenantId: string,
@@ -188,7 +217,56 @@ export async function getPendingApprovals(
     orderBy: { created_at: 'asc' },
   });
 
-  return rows.map(mapRequest);
+  const now = Date.now();
+  const active: typeof rows = [];
+
+  for (const row of rows) {
+    if (now - row.created_at.getTime() > APPROVAL_EXPIRY_MS) {
+      await expireRequest(tenantId, row.id, row.trigger as ApprovalTrigger);
+    } else {
+      active.push(row);
+    }
+  }
+
+  return active.map(mapRequest);
+}
+
+/**
+ * Marks one request EXPIRED, audits it, and dispatches `approval.expired`.
+ *
+ * The status transition is conditional (`updateMany ... where status=PENDING`)
+ * so concurrent reads can't both expire the same request — only the call that
+ * actually flips PENDING→EXPIRED audits and dispatches the webhook. This makes
+ * the lazy-expiry side effect on getPendingApprovals idempotent.
+ */
+async function expireRequest(
+  tenantId: string,
+  requestId: string,
+  trigger: ApprovalTrigger,
+): Promise<void> {
+  const { count } = await prisma.approvalRequest.updateMany({
+    where: { id: requestId, status: ApprovalStatus.PENDING },
+    data:  { status: ApprovalStatus.EXPIRED },
+  });
+
+  // Someone else already expired it — don't double-audit or double-dispatch.
+  if (count === 0) return;
+
+  await writeAuditEvent({
+    tenantId,
+    action:     AuditAction.APPROVAL_DECIDED,
+    entityType: 'approval_request',
+    entityId:   requestId,
+    payload:    { decision: ApprovalStatus.EXPIRED, reason: 'auto_expired_72h' },
+  });
+
+  logger.info({ tenantId, requestId }, 'approval.expired');
+
+  void dispatch(tenantId, 'approval.expired', {
+    approvalId:        requestId,
+    trigger,
+    expiredAfterHours: 72,
+  });
 }
 
 // ---- Private mappers ----

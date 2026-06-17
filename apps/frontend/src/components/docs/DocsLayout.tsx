@@ -1,4 +1,5 @@
 import { Link, NavLink, Outlet } from 'react-router-dom';
+import ProgueLogo from '../ProgueLogo';
 
 /**
  * Docs shell: left sidebar nav + main content area.
@@ -44,6 +45,7 @@ const SECTIONS: NavSection[] = [
       { label: 'HTS Classifier', to: '/docs/api/hts' },
       { label: 'Approval Workflow', to: '/docs/api/approval' },
       { label: 'Audit Trail', to: '/docs/api/audit' },
+      { label: 'Shipment Risk Score', to: '/docs/api/risk' },
     ],
   },
   {
@@ -83,8 +85,8 @@ export default function DocsLayout() {
       <aside className="hidden md:flex md:flex-col md:w-[264px] md:shrink-0 md:h-screen md:sticky md:top-0 border-r border-[var(--border)] bg-[var(--surface)]">
         {/* Wordmark */}
         <div className="h-14 flex items-center px-6 border-b border-[var(--border)]">
-          <Link to="/" className="text-[16px] font-medium tracking-[-0.02em] no-underline text-[var(--text)]">
-            progue<span className="text-[var(--brand)]">.</span>
+          <Link to="/" className="no-underline" style={{ lineHeight: 0 }}>
+            <ProgueLogo height={28} />
           </Link>
           <span className="ml-2 font-[family-name:var(--mono)] text-[10px] uppercase tracking-[0.1em] text-[var(--text-3)]">
             Docs

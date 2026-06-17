@@ -17,6 +17,7 @@ const servers = new Map<string, BaseMCPServer | null>([
   ['hts-classifier',  null], // filled by PR 4.1b
   ['carbon-tracking', null], // Phase 2 feature — stub sealed by PR 4.3
   ['supplier-risk',   null], // Phase 2 feature — stub sealed by PR 4.3
+  ['risk-scorer',     null], // Shipment Risk Score — Week 2
 ]);
 
 /** Register a concrete server. Throws if the slot is not pre-reserved. */

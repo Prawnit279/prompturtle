@@ -19,11 +19,14 @@ import clerkWebhookRouter from './routes/clerk-webhooks.js';
 import webhookRouter from './routes/webhooks.js';
 import keysRouter from './routes/keys.js';
 import logsRouter from './routes/logs.js';
+import riskRouter from './routes/risk.js';
 import usageRouter from './routes/usage.js';
+import webhookEndpointsRouter from './routes/webhook-endpoints.js';
 import { BolProcessorMCP } from './mcp/servers/BolProcessorMCP.js';
 import { CarrierRatesMCP } from './mcp/servers/CarrierRatesMCP.js';
 import { CarbonTrackingMCP } from './mcp/servers/CarbonTrackingMCP.js';
 import { HtsClassifierMCP } from './mcp/servers/HtsClassifierMCP.js';
+import { RiskScorerMCP } from './mcp/servers/RiskScorerMCP.js';
 import { SupplierRiskMCP } from './mcp/servers/SupplierRiskMCP.js';
 import { GuardrailViolationError } from './mcp/types.js';
 import { registerServer } from './mcp/registry.js';
@@ -122,6 +125,7 @@ registerServer(new CarrierRatesMCP());
 registerServer(new HtsClassifierMCP());
 registerServer(new CarbonTrackingMCP());
 registerServer(new SupplierRiskMCP());
+registerServer(new RiskScorerMCP());
 
 // ---- Protected router ----
 // All feature routes must mount onto this router — enforces auth + tenant context.
@@ -139,6 +143,8 @@ protectedRouter.use('/billing', billingRouter);
 protectedRouter.use('/keys',    keysRouter);
 protectedRouter.use('/logs',    logsRouter);
 protectedRouter.use('/usage',   usageRouter);
+protectedRouter.use('/risk',    riskRouter);
+protectedRouter.use('/webhooks', webhookEndpointsRouter);
 
 app.use('/api', protectedRouter);
 

@@ -491,3 +491,446 @@ describe('flag_bol_discrepancies', () => {
     expect(result.success).toBe(false);
   });
 });
+
+// ================================================================
+// bolType parameter — backward compatibility
+// ================================================================
+
+describe('backward compatibility — bolType defaults to TRUCK_BOL', () => {
+  let server: BolProcessorMCP;
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    server = new BolProcessorMCP();
+  });
+
+  it('extract_bol_fields works without bolType (defaults to TRUCK_BOL)', async () => {
+    const mockOutput = { bolNumber: 'BOL-001', extractionConfidence: 0.9 };
+    MOCK_CREATE.mockResolvedValue(makeAnthropicResponse(mockOutput));
+
+    const result = await server.executeTool(
+      'extract_bol_fields',
+      { rawText: 'BOL NUMBER: BOL-001\nSHIPPER: Test Co\nDESTINATION: CNSHA' },
+      makeCtx(),
+    );
+
+    expect(result.success).toBe(true);
+  });
+
+  it('validate_bol_data works without bolType — returns complianceFlags array', async () => {
+    MOCK_CREATE.mockResolvedValue(
+      makeAnthropicResponse({ isValid: true, errors: [], missingRequiredFields: [] }),
+    );
+
+    const result = await server.executeTool(
+      'validate_bol_data',
+      {
+        bolFields: {
+          scacCode:  'MAEU',
+          consignee: { name: 'Consignee LLC', address: '200 Oak Ave, Dallas TX' },
+          bolNumber: 'BOL-001',
+          extractionConfidence: 0.9,
+        },
+      },
+      makeCtx(),
+    );
+
+    expect(result.success).toBe(true);
+    const data = result.data as { complianceFlags: unknown[] };
+    expect(Array.isArray(data.complianceFlags)).toBe(true);
+    expect(data.complianceFlags).toHaveLength(0);
+  });
+
+  it('flag_bol_discrepancies works without bolType', async () => {
+    MOCK_CREATE.mockResolvedValue(
+      makeAnthropicResponse({
+        hasDiscrepancies:  false,
+        discrepancies:     [],
+        recommendedAction: 'APPROVE',
+        summary:           'Match.',
+      }),
+    );
+
+    const result = await server.executeTool(
+      'flag_bol_discrepancies',
+      {
+        bolFields:     { bolNumber: 'BOL-001', extractionConfidence: 0.9 },
+        referenceDoc:  { poNumber: 'PO-001' },
+        referenceType: 'PURCHASE_ORDER',
+      },
+      makeCtx(),
+    );
+
+    expect(result.success).toBe(true);
+  });
+});
+
+// ================================================================
+// AWB mode — extract_bol_fields
+// ================================================================
+
+describe('extract_bol_fields — AIR_WAYBILL mode', () => {
+  let server: BolProcessorMCP;
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    server = new BolProcessorMCP();
+  });
+
+  const VALID_AWB_OUTPUT = {
+    awbNumber:            '020-12345678',
+    airlineCode:          'LH',
+    originAirport:        'FRA',
+    destinationAirport:   'JFK',
+    pieces:               2,
+    grossWeightKg:        100,
+    chargeableWeightKg:   100,
+    commodity:            'Electronics',
+    freightCharges:       'prepaid',
+    extractionConfidence: 0.95,
+  };
+
+  it('parses a valid AWB with all required fields', async () => {
+    MOCK_CREATE.mockResolvedValue(makeAnthropicResponse(VALID_AWB_OUTPUT));
+
+    const result = await server.executeTool(
+      'extract_bol_fields',
+      {
+        rawText: 'AWB: 020-12345678\nAIRLINE: LH\nFROM: FRA\nTO: JFK\nPIECES: 2\nWEIGHT: 100kg',
+        bolType: 'AIR_WAYBILL',
+      },
+      makeCtx(),
+    );
+
+    expect(result.success).toBe(true);
+    const data = result.data as typeof VALID_AWB_OUTPUT;
+    expect(data.awbNumber).toBe('020-12345678');
+    expect(data.originAirport).toBe('FRA');
+  });
+
+  it('includes AWB-specific field names in the LLM prompt', async () => {
+    MOCK_CREATE.mockResolvedValue(makeAnthropicResponse(VALID_AWB_OUTPUT));
+
+    await server.executeTool(
+      'extract_bol_fields',
+      {
+        rawText: 'AWB: 020-12345678\nAIRLINE: LH\nFROM: FRA\nTO: JFK\nPIECES: 2\nWEIGHT: 100kg',
+        bolType: 'AIR_WAYBILL',
+      },
+      makeCtx(),
+    );
+
+    const callArg = MOCK_CREATE.mock.calls[0]?.[0] as { messages: { content: string }[] } | undefined;
+    expect(callArg?.messages[0]?.content).toContain('awbNumber');
+    expect(callArg?.messages[0]?.content).toContain('originAirport');
+  });
+
+  it('returns success:false when AWB output fails schema validation', async () => {
+    // Missing required AWB fields (awbNumber, airlineCode, etc.)
+    MOCK_CREATE.mockResolvedValue(makeAnthropicResponse({ extractionConfidence: 0.5 }));
+
+    const result = await server.executeTool(
+      'extract_bol_fields',
+      {
+        rawText: 'Cannot parse this document at all here we go',
+        bolType: 'AIR_WAYBILL',
+      },
+      makeCtx(),
+    );
+
+    expect(result.success).toBe(false);
+    expect((result.data as { error: string }).error).toBe('Output schema mismatch');
+  });
+});
+
+// ================================================================
+// Ocean BOL mode — extract_bol_fields
+// ================================================================
+
+describe('extract_bol_fields — OCEAN_BOL mode', () => {
+  let server: BolProcessorMCP;
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    server = new BolProcessorMCP();
+  });
+
+  const VALID_OBOL_OUTPUT = {
+    bolNumber:            'MBL-2024-001',
+    vesselName:           'EVER GIVEN',
+    voyageNumber:         'V001W',
+    portOfLoading:        'CNSHA',
+    portOfDischarge:      'USLAX',
+    containers:           [{ containerNumber: 'CSCU1234567', type: '20GP', weightKg: 10_000 }],
+    commodity:            'General Cargo',
+    grossWeightKg:        10_000,
+    freightTerms:         'prepaid',
+    extractionConfidence: 0.92,
+  };
+
+  it('parses a valid Ocean BOL with all required fields', async () => {
+    MOCK_CREATE.mockResolvedValue(makeAnthropicResponse(VALID_OBOL_OUTPUT));
+
+    const result = await server.executeTool(
+      'extract_bol_fields',
+      {
+        rawText: 'BOL: MBL-2024-001\nVESSEL: EVER GIVEN\nVOYAGE: V001W\nFROM: CNSHA\nTO: USLAX',
+        bolType: 'OCEAN_BOL',
+      },
+      makeCtx(),
+    );
+
+    expect(result.success).toBe(true);
+    const data = result.data as typeof VALID_OBOL_OUTPUT;
+    expect(data.bolNumber).toBe('MBL-2024-001');
+    expect(data.portOfLoading).toBe('CNSHA');
+  });
+
+  it('includes Ocean-specific field names in the LLM prompt', async () => {
+    MOCK_CREATE.mockResolvedValue(makeAnthropicResponse(VALID_OBOL_OUTPUT));
+
+    await server.executeTool(
+      'extract_bol_fields',
+      {
+        rawText: 'BOL: MBL-2024-001\nVESSEL: EVER GIVEN\nVOYAGE: V001W\nFROM: CNSHA\nTO: USLAX',
+        bolType: 'OCEAN_BOL',
+      },
+      makeCtx(),
+    );
+
+    const callArg = MOCK_CREATE.mock.calls[0]?.[0] as { messages: { content: string }[] } | undefined;
+    expect(callArg?.messages[0]?.content).toContain('portOfLoading');
+    expect(callArg?.messages[0]?.content).toContain('containerNumber');
+  });
+});
+
+// ================================================================
+// validate_bol_data — AWB compliance flags via MCP tool
+// ================================================================
+
+describe('validate_bol_data — AWB compliance flag integration', () => {
+  let server: BolProcessorMCP;
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    server = new BolProcessorMCP();
+  });
+
+  it('appends INVALID_AIRPORT_CODE flag when airport code is wrong', async () => {
+    MOCK_CREATE.mockResolvedValue(
+      makeAnthropicResponse({ isValid: true, errors: [], missingRequiredFields: [] }),
+    );
+
+    const result = await server.executeTool(
+      'validate_bol_data',
+      {
+        bolType: 'AIR_WAYBILL',
+        bolFields: {
+          awbNumber:          '020-12345678',
+          airlineCode:        'LH',
+          originAirport:      'FRANKFURT', // invalid — must be 3 chars
+          destinationAirport: 'JFK',
+          pieces:             1,
+          grossWeightKg:      100,
+          chargeableWeightKg: 100,
+          commodity:          'Electronics',
+        },
+      },
+      makeCtx(),
+    );
+
+    expect(result.success).toBe(true);
+    const data = result.data as { complianceFlags: Array<{ code: string }> };
+    expect(data.complianceFlags.some((f) => f.code === 'INVALID_AIRPORT_CODE')).toBe(true);
+  });
+
+  it('appends DANGEROUS_GOODS_UNDECLARED flag for lithium battery without DGR', async () => {
+    MOCK_CREATE.mockResolvedValue(
+      makeAnthropicResponse({ isValid: true, errors: [], missingRequiredFields: [] }),
+    );
+
+    const result = await server.executeTool(
+      'validate_bol_data',
+      {
+        bolType: 'AIR_WAYBILL',
+        bolFields: {
+          awbNumber:          '020-12345678',
+          airlineCode:        'LH',
+          originAirport:      'FRA',
+          destinationAirport: 'JFK',
+          pieces:             1,
+          grossWeightKg:      50,
+          chargeableWeightKg: 50,
+          commodity:          'Lithium battery packs for EVs',
+          specialHandling:    [],
+        },
+      },
+      makeCtx(),
+    );
+
+    expect(result.success).toBe(true);
+    const data = result.data as { complianceFlags: Array<{ code: string; severity: string }> };
+    const dgrFlag = data.complianceFlags.find((f) => f.code === 'DANGEROUS_GOODS_UNDECLARED');
+    expect(dgrFlag).toBeDefined();
+    expect(dgrFlag?.severity).toBe('critical');
+  });
+});
+
+// ================================================================
+// validate_bol_data — Ocean BOL compliance flags
+// ================================================================
+
+describe('validate_bol_data — Ocean BOL compliance flags', () => {
+  let server: BolProcessorMCP;
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    server = new BolProcessorMCP();
+  });
+
+  const OCEAN_BOL_BASE = {
+    portOfLoading:   'CNSHA',
+    portOfDischarge: 'USLAX',
+    containers: [{ containerNumber: 'CSCU1234567' }],
+  };
+
+  it('appends MISSING_CONTAINER_NUMBERS flag when containers is empty', async () => {
+    MOCK_CREATE.mockResolvedValue(
+      makeAnthropicResponse({ isValid: false, errors: [], missingRequiredFields: [] }),
+    );
+
+    const result = await server.executeTool(
+      'validate_bol_data',
+      { bolType: 'OCEAN_BOL', bolFields: { ...OCEAN_BOL_BASE, containers: [] } },
+      makeCtx(),
+    );
+
+    expect(result.success).toBe(true);
+    const data = result.data as { complianceFlags: Array<{ code: string }> };
+    expect(data.complianceFlags.some((f) => f.code === 'MISSING_CONTAINER_NUMBERS')).toBe(true);
+  });
+
+  it('appends HBL_WITHOUT_MBL flag when HBL has no MBL', async () => {
+    MOCK_CREATE.mockResolvedValue(
+      makeAnthropicResponse({ isValid: true, errors: [], missingRequiredFields: [] }),
+    );
+
+    const result = await server.executeTool(
+      'validate_bol_data',
+      { bolType: 'OCEAN_BOL', bolFields: { ...OCEAN_BOL_BASE, hblNumber: 'HBL-001' } },
+      makeCtx(),
+    );
+
+    expect(result.success).toBe(true);
+    const data = result.data as { complianceFlags: Array<{ code: string }> };
+    expect(data.complianceFlags.some((f) => f.code === 'HBL_WITHOUT_MBL')).toBe(true);
+  });
+
+  it('appends CONTAINER_FORMAT_INVALID flag for badly-formatted container number', async () => {
+    MOCK_CREATE.mockResolvedValue(
+      makeAnthropicResponse({ isValid: true, errors: [], missingRequiredFields: [] }),
+    );
+
+    const result = await server.executeTool(
+      'validate_bol_data',
+      {
+        bolType:   'OCEAN_BOL',
+        bolFields: { ...OCEAN_BOL_BASE, containers: [{ containerNumber: 'BADNUM-001' }] },
+      },
+      makeCtx(),
+    );
+
+    expect(result.success).toBe(true);
+    const data = result.data as { complianceFlags: Array<{ code: string }> };
+    expect(data.complianceFlags.some((f) => f.code === 'CONTAINER_FORMAT_INVALID')).toBe(true);
+  });
+
+  it('appends MISSING_PORT_CODES flag for invalid portOfLoading LOCODE', async () => {
+    MOCK_CREATE.mockResolvedValue(
+      makeAnthropicResponse({ isValid: false, errors: [], missingRequiredFields: [] }),
+    );
+
+    const result = await server.executeTool(
+      'validate_bol_data',
+      { bolType: 'OCEAN_BOL', bolFields: { ...OCEAN_BOL_BASE, portOfLoading: '' } },
+      makeCtx(),
+    );
+
+    expect(result.success).toBe(true);
+    const data = result.data as { complianceFlags: Array<{ code: string }> };
+    expect(data.complianceFlags.some((f) => f.code === 'MISSING_PORT_CODES')).toBe(true);
+  });
+});
+
+// ================================================================
+// GUARDRAIL INTEGRATION — CUSTOMS_BROKER_UNVERIFIED end-to-end
+// ================================================================
+// Verifies that an Ocean BOL with customsBroker.verified=false produces
+// a CUSTOMS_BROKER_UNVERIFIED critical compliance flag through the full
+// validate_bol_data execution path.
+
+describe('guardrail integration — CUSTOMS_BROKER_UNVERIFIED', () => {
+  let server: BolProcessorMCP;
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    server = new BolProcessorMCP();
+  });
+
+  it('Ocean BOL with unverified broker returns CUSTOMS_BROKER_UNVERIFIED critical flag', async () => {
+    MOCK_CREATE.mockResolvedValue(
+      makeAnthropicResponse({ isValid: true, errors: [], missingRequiredFields: [] }),
+    );
+
+    const result = await server.executeTool(
+      'validate_bol_data',
+      {
+        bolType: 'OCEAN_BOL',
+        bolFields: {
+          portOfLoading:   'CNSHA',
+          portOfDischarge: 'USLAX',
+          containers: [{ containerNumber: 'CSCU1234567' }],
+          customsBroker: { name: 'FastBroker LLC', verified: false },
+        },
+      },
+      makeCtx(),
+    );
+
+    expect(result.success).toBe(true);
+    const data = result.data as {
+      isValid: boolean;
+      complianceFlags: Array<{ code: string; severity: string; message: string }>;
+    };
+
+    const customsFlag = data.complianceFlags.find(
+      (f) => f.code === 'CUSTOMS_BROKER_UNVERIFIED',
+    );
+    expect(customsFlag).toBeDefined();
+    expect(customsFlag?.severity).toBe('critical');
+    expect(customsFlag?.message).toContain('not been verified');
+  });
+
+  it('Ocean BOL with verified broker produces no CUSTOMS_BROKER_UNVERIFIED flag', async () => {
+    MOCK_CREATE.mockResolvedValue(
+      makeAnthropicResponse({ isValid: true, errors: [], missingRequiredFields: [] }),
+    );
+
+    const result = await server.executeTool(
+      'validate_bol_data',
+      {
+        bolType: 'OCEAN_BOL',
+        bolFields: {
+          portOfLoading:   'CNSHA',
+          portOfDischarge: 'USLAX',
+          containers: [{ containerNumber: 'CSCU1234567' }],
+          customsBroker: { name: 'TrustedBroker Inc', verified: true },
+        },
+      },
+      makeCtx(),
+    );
+
+    expect(result.success).toBe(true);
+    const data = result.data as { complianceFlags: Array<{ code: string }> };
+    expect(data.complianceFlags.some((f) => f.code === 'CUSTOMS_BROKER_UNVERIFIED')).toBe(false);
+  });
+});

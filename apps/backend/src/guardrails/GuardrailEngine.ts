@@ -1,6 +1,7 @@
 import { AuditAction } from '@prompturtle/shared';
 
 import { writeAuditEvent } from '../lib/audit.js';
+import { dispatch } from '../lib/webhook-service.js';
 import logger from '../lib/logger.js';
 import { GuardrailViolationError } from '../mcp/types.js';
 import type { ToolCallContext } from '../mcp/types.js';
@@ -51,6 +52,16 @@ export class GuardrailEngine {
             message: violation.message,
             ...violation.payload,
           },
+        });
+
+        // A guardrail violation is a halted decision — notify subscribers after
+        // the audit write. Fire-and-forget: must not block or break the request.
+        void dispatch(ctx.tenantId, 'decision.halted', {
+          rule:      violation.rule,
+          message:   violation.message,
+          mcpServer: ctx.mcpServer,
+          toolName,
+          ...violation.payload,
         });
 
         throw new GuardrailViolationError(

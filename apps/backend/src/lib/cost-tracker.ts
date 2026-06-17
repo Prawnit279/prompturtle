@@ -1,4 +1,4 @@
-import { TIER_LIMITS, TenantTier } from '@prompturtle/shared';
+import { TIER_LIMITS, TenantTier, type BolType } from '@prompturtle/shared';
 
 import { prisma } from './db.js';
 import logger from './logger.js';
@@ -40,6 +40,8 @@ export interface TrackedCallOptions {
   /** Optional — defaults to claude-haiku when not supplied (e.g. called from BaseMCPServer). */
   model?: ModelName;
   tier: TenantTier;
+  /** Optional — set by BOL Processor tools so tool_calls.bol_type is populated for analytics. */
+  bolType?: BolType;
 }
 
 // ---- Main export ----
@@ -56,7 +58,7 @@ export async function trackedCall<T>(
   options: TrackedCallOptions,
   fn: () => Promise<T>,
 ): Promise<T> {
-  const { tenantId, mcpServer, toolName, tier } = options;
+  const { tenantId, mcpServer, toolName, tier, bolType } = options;
   const model: ModelName = options.model ?? DEFAULT_MODEL;
   const limits = TIER_LIMITS[tier];
 
@@ -136,6 +138,7 @@ export async function trackedCall<T>(
       outputTokens: 0,
       costUsd: 0,
       success: false,
+      bolType: bolType ?? null,
     });
     throw err;
   }
@@ -156,6 +159,7 @@ export async function trackedCall<T>(
     outputTokens: tokenUsage.outputTokens,
     costUsd,
     success: true,
+    bolType: bolType ?? null,
   });
 
   // Fire-and-forget usage warning — do not await; must not block or throw in request path
@@ -190,6 +194,8 @@ interface ToolCallRecord {
   outputTokens: number;
   costUsd: number;
   success: boolean;
+  /** Populated only for BOL Processor calls; null for all other MCP servers. */
+  bolType: BolType | null;
 }
 
 async function writeToolCallRecord(record: ToolCallRecord): Promise<void> {
@@ -205,6 +211,7 @@ async function writeToolCallRecord(record: ToolCallRecord): Promise<void> {
         output_tokens: record.outputTokens,
         cost_usd: record.costUsd,
         success: record.success,
+        bol_type: record.bolType,
       },
     });
   } catch (err) {

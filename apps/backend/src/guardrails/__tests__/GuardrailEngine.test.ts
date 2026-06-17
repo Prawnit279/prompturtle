@@ -16,6 +16,10 @@ vi.mock('../../lib/audit.js', () => ({
   writeAuditEvent: vi.fn().mockResolvedValue(undefined),
 }));
 
+vi.mock('../../lib/webhook-service.js', () => ({
+  dispatch: vi.fn().mockResolvedValue(undefined),
+}));
+
 vi.mock('../../lib/logger.js', () => ({
   default: {
     warn:  vi.fn(),
@@ -26,6 +30,7 @@ vi.mock('../../lib/logger.js', () => ({
 }));
 
 import { writeAuditEvent } from '../../lib/audit.js';
+import { dispatch } from '../../lib/webhook-service.js';
 import { prisma } from '../../lib/db.js';
 
 import { GuardrailEngine } from '../GuardrailEngine.js';
@@ -35,6 +40,7 @@ import { TenantScopeRule } from '../rules/TenantScopeRule.js';
 import { GuardrailViolationError } from '../../mcp/types.js';
 
 const mockWriteAudit = writeAuditEvent as ReturnType<typeof vi.fn>;
+const mockDispatch   = dispatch as ReturnType<typeof vi.fn>;
 const mockPrisma = prisma as unknown as {
   toolCall: { count: ReturnType<typeof vi.fn> };
 };
@@ -84,6 +90,16 @@ describe('GuardrailEngine', () => {
     await expect(engine.enforce(makeCtx(), 'parse-bol', {})).rejects.toThrow();
     expect(mockWriteAudit).toHaveBeenCalledOnce();
     expect(mockWriteAudit.mock.calls[0]?.[0]?.action).toBe('GUARDRAIL_VIOLATION');
+  });
+
+  it('dispatches a decision.halted webhook on violation', async () => {
+    mockPrisma.toolCall.count.mockResolvedValue(10);
+    await expect(engine.enforce(makeCtx(), 'parse-bol', {})).rejects.toThrow();
+    expect(mockDispatch).toHaveBeenCalledWith(
+      'tenant-aaa',
+      'decision.halted',
+      expect.objectContaining({ mcpServer: 'bol-processor', toolName: 'parse-bol' }),
+    );
   });
 });
 
