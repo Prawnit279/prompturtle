@@ -31,5 +31,17 @@ export default function ClerkProtectedLayout({ children }: ClerkProtectedLayoutP
     );
   }
 
-  return <ClerkProvider publishableKey={clerkKey}>{children}</ClerkProvider>;
+  return (
+    <ClerkProvider
+      publishableKey={clerkKey}
+      appearance={{
+        layout: {
+          logoImageUrl: '/progue-logo.png',
+          logoLinkUrl: '/',
+        },
+      }}
+    >
+      {children}
+    </ClerkProvider>
+  );
 }

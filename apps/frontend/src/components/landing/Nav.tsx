@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { navContent } from '../../content/avgstar';
+import ProgueLogo from '../ProgueLogo';
 
 export default function Nav(): React.ReactElement {
   const [scrolled, setScrolled] = useState(false);
@@ -17,8 +18,8 @@ export default function Nav(): React.ReactElement {
   return (
     <nav className={`nav${scrolled ? ' scrolled' : ''}`}>
       <div className="rail">
-        <Link to="/" className="wm">
-          progue<span className="dot">.</span>
+        <Link to="/" className="wm" style={{ lineHeight: 0 }}>
+          <ProgueLogo height={32} />
         </Link>
         <div className="nav-links">
           {c.links.map(link => (

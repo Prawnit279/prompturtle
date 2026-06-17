@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom';
 import { footerContent } from '../../content/avgstar';
+import ProgueLogo from '../ProgueLogo';
 
 export default function Footer(): React.ReactElement {
   const c = footerContent;
@@ -11,7 +12,7 @@ export default function Footer(): React.ReactElement {
         <div className="footer-grid">
           <div>
             <div className="wm">
-              progue<span className="dot" style={{ color: 'var(--brand-lift)' }}>.</span>
+              <ProgueLogo height={26} />
             </div>
             <div className="tag">{c.tag}</div>
           </div>

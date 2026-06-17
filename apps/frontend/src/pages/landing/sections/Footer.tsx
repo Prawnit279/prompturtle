@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom';
 import { footer } from '../../../content/landing';
+import ProgueLogo from '../../../components/ProgueLogo';
 
 export default function Footer() {
   const year = new Date().getFullYear();
@@ -11,8 +12,8 @@ export default function Footer() {
         <div className="grid grid-cols-2 md:grid-cols-5 gap-8 mb-14">
           {/* Wordmark + tagline */}
           <div className="col-span-2 md:col-span-1">
-            <Link to="/" className="font-sans text-lg font-medium no-underline" style={{ color: 'var(--text)' }}>
-              progue<span style={{ color: 'var(--brand)' }}>.</span>
+            <Link to="/" className="no-underline" style={{ lineHeight: 0 }}>
+              <ProgueLogo height={26} />
             </Link>
             <p className="mt-2 text-sm leading-relaxed" style={{ color: 'var(--text-3)' }}>
               {footer.tagline}

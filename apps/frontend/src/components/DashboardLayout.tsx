@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link, useLocation, Outlet } from 'react-router-dom';
+import ProgueLogo from './ProgueLogo';
 import { OrganizationSwitcher, UserButton, useAuth, useOrganizationList } from '@clerk/clerk-react';
 import {
   IconChartBar,
@@ -79,9 +80,7 @@ export default function DashboardLayout() {
         }}
       >
         {/* Wordmark */}
-        <span style={{ fontSize: '16px', fontWeight: 500, letterSpacing: '-0.02em', fontFamily: 'var(--sans)' }}>
-          progue<span style={{ color: 'var(--brand)' }}>.</span>
-        </span>
+        <ProgueLogo height={28} />
 
         {/* Org Switcher pill */}
         <div style={{ marginLeft: '30px' }}>

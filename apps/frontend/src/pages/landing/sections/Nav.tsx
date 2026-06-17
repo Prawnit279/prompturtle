@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom';
+import ProgueLogo from '../../../components/ProgueLogo';
 
 const NAV_LINKS = [
   { label: 'Solutions', to: '/solutions' },
@@ -18,12 +19,8 @@ export default function Nav() {
       }}
     >
       <div className="max-w-5xl mx-auto w-full px-6 flex items-center justify-between">
-        <Link
-          to="/"
-          className="font-sans text-lg font-medium no-underline"
-          style={{ color: 'var(--text)' }}
-        >
-          progue<span style={{ color: 'var(--brand)' }}>.</span>
+        <Link to="/" className="no-underline" style={{ lineHeight: 0 }}>
+          <ProgueLogo height={32} />
         </Link>
 
         <nav className="hidden md:flex items-center gap-7">
