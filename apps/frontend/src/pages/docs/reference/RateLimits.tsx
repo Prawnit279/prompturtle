@@ -12,9 +12,9 @@ export default function ReferenceRateLimits() {
       <DocsTable
         head={['Tier', 'Monthly calls', 'Max request rate']}
         rows={[
-          ['Starter', '10,000', 'Standard'],
-          ['Growth', '100,000', 'Standard (500 req/min sustained)'],
-          ['Enterprise', 'Unlimited', '2,000 req/min'],
+          ['Starter', '10,000', '10 req/min'],
+          ['Growth', '100,000', '60 req/min'],
+          ['Enterprise', 'Unlimited', '300 req/min'],
         ]}
       />
 
