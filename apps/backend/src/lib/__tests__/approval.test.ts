@@ -34,6 +34,13 @@ vi.mock('../webhook-service.js', () => ({
   dispatch: vi.fn().mockResolvedValue(undefined),
 }));
 
+vi.mock('../guardrail-config.js', () => ({
+  getGuardrailConfig: vi.fn().mockResolvedValue({
+    id: '', tenantId: 'tenant-abc', costThreshold: 10_000, approvedCarriers: [],
+    requireBrokerVerify: true, autoApproveBelow: 0, updatedAt: '',
+  }),
+}));
+
 vi.mock('../../lib/logger.js', () => ({
   default: {
     info:  vi.fn(),
@@ -48,6 +55,7 @@ vi.mock('../../lib/logger.js', () => ({
 import { prisma } from '../../lib/db.js';
 import { writeAuditEvent } from '../../lib/audit.js';
 import { dispatch } from '../webhook-service.js';
+import { getGuardrailConfig } from '../guardrail-config.js';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const mockRequest  = (prisma.approvalRequest as any);
@@ -57,6 +65,14 @@ const mockDecision = (prisma.approvalDecision as any);
 const mockTx       = (prisma as any).$transaction as ReturnType<typeof vi.fn>;
 const mockAudit    = writeAuditEvent as ReturnType<typeof vi.fn>;
 const mockDispatch = dispatch as ReturnType<typeof vi.fn>;
+const mockGetConfig = getGuardrailConfig as ReturnType<typeof vi.fn>;
+
+function configResult(overrides: Record<string, unknown> = {}) {
+  return {
+    id: '', tenantId: TENANT, costThreshold: 10_000, approvedCarriers: [],
+    requireBrokerVerify: true, autoApproveBelow: 0, updatedAt: '', ...overrides,
+  };
+}
 
 // ---- Helpers ----
 
@@ -92,6 +108,7 @@ function makeDecisionRow(overrides: Record<string, unknown> = {}) {
 beforeEach(() => {
   vi.clearAllMocks();
 
+  mockGetConfig.mockResolvedValue(configResult());
   mockRequest.create.mockResolvedValue(makeRequestRow());
   mockRequest.findUnique.mockResolvedValue(makeRequestRow());
   // Recent date so the default pending row is not auto-expired by the 72h rule.
@@ -218,6 +235,70 @@ describe('checkAndRequestApproval', () => {
 
     expect(result?.id).toBe(REQ_ID);
     expect(result?.tenantId).toBe(TENANT);
+  });
+
+  // ---- Per-tenant config (Week 4) ----
+
+  it('uses the configured costThreshold: no request at $15k when threshold is $50k', async () => {
+    mockGetConfig.mockResolvedValue(configResult({ costThreshold: 50_000 }));
+
+    const result = await checkAndRequestApproval({
+      tenantId: TENANT,
+      trigger:  ApprovalTrigger.HIGH_SHIPMENT_COST,
+      context:  { shipmentCostUsd: 15_000 },
+    });
+
+    expect(result).toBeNull();
+    expect(mockRequest.create).not.toHaveBeenCalled();
+  });
+
+  it('uses the configured costThreshold: creates a request at $55k when threshold is $50k', async () => {
+    mockGetConfig.mockResolvedValue(configResult({ costThreshold: 50_000 }));
+
+    const result = await checkAndRequestApproval({
+      tenantId: TENANT,
+      trigger:  ApprovalTrigger.HIGH_SHIPMENT_COST,
+      context:  { shipmentCostUsd: 55_000 },
+    });
+
+    expect(result).not.toBeNull();
+    expect(mockRequest.create).toHaveBeenCalledOnce();
+  });
+
+  it('auto-approves a shipment below autoApproveBelow without creating a request', async () => {
+    mockGetConfig.mockResolvedValue(configResult({ autoApproveBelow: 500 }));
+
+    const result = await checkAndRequestApproval({
+      tenantId: TENANT,
+      trigger:  ApprovalTrigger.HIGH_SHIPMENT_COST,
+      context:  { shipmentCostUsd: 300 },
+    });
+
+    expect(result).toBeNull();
+    expect(mockRequest.create).not.toHaveBeenCalled();
+    expect(mockAudit).toHaveBeenCalledWith(
+      expect.objectContaining({
+        payload: expect.objectContaining({ reason: 'auto_approved_below_threshold' }),
+      }),
+    );
+  });
+
+  it('does not auto-approve at/above the floor; enters the normal workflow', async () => {
+    mockGetConfig.mockResolvedValue(configResult({ autoApproveBelow: 500, costThreshold: 550 }));
+
+    const result = await checkAndRequestApproval({
+      tenantId: TENANT,
+      trigger:  ApprovalTrigger.HIGH_SHIPMENT_COST,
+      context:  { shipmentCostUsd: 600 },
+    });
+
+    expect(result).not.toBeNull();
+    expect(mockRequest.create).toHaveBeenCalledOnce();
+    expect(mockAudit).not.toHaveBeenCalledWith(
+      expect.objectContaining({
+        payload: expect.objectContaining({ reason: 'auto_approved_below_threshold' }),
+      }),
+    );
   });
 });
 

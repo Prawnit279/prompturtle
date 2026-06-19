@@ -87,6 +87,7 @@ model Tenant {
   users             User[]
   approval_requests ApprovalRequest[]
   webhooks          Webhook[]
+  guardrail_config  GuardrailConfig?
 
   @@map("tenants")
 }
@@ -281,6 +282,25 @@ model Webhook {
 
   @@index([tenant_id])
   @@map("webhooks")
+}
+
+// ---------------------------------------------------------------------------
+// Per-tenant guardrail configuration (Week 4). One row per tenant; absence
+// means platform defaults (GUARDRAIL_DEFAULTS) apply. snake_case per repo
+// convention. `cost_threshold` / `auto_approve_below` are USD amounts.
+// ---------------------------------------------------------------------------
+
+model GuardrailConfig {
+  id                    String   @id @default(cuid())
+  tenant_id             String   @unique
+  tenant                Tenant   @relation(fields: [tenant_id], references: [id], onDelete: Cascade)
+  cost_threshold        Float    @default(10000)
+  approved_carriers     String[] @default([])
+  require_broker_verify Boolean  @default(true)
+  auto_approve_below    Float    @default(0)
+  updated_at            DateTime @updatedAt
+
+  @@map("guardrail_configs")
 }
 
 model WebhookDelivery {

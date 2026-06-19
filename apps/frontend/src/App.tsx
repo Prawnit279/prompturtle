@@ -7,6 +7,7 @@ import Overview             from './pages/Overview';
 import ApiKeys              from './pages/ApiKeys';
 import CallLogs             from './pages/CallLogs';
 import Webhooks            from './pages/Webhooks';
+import Guardrails          from './pages/Guardrails';
 import Billing              from './pages/Billing';
 import Landing              from './pages/Landing';
 import PricingPage          from './pages/PricingPage';
@@ -116,8 +117,9 @@ export default function App() {
           <Route index           element={<Overview />} />
           <Route path="keys"     element={<ApiKeys />}  />
           <Route path="logs"     element={<CallLogs />} />
-          <Route path="webhooks" element={<Webhooks />} />
-          <Route path="billing"  element={<Billing />}  />
+          <Route path="webhooks"   element={<Webhooks />} />
+          <Route path="billing"    element={<Billing />}  />
+          <Route path="guardrails" element={<Guardrails />} />
         </Route>
 
         <Route path="*" element={<Navigate to="/" replace />} />

@@ -12,3 +12,4 @@ export * from './types/approval';
 export * from './types/bol';
 export * from './types/risk';
 export * from './types/webhook';
+export * from './types/guardrail';

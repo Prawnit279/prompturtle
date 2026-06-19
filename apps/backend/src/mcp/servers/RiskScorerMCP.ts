@@ -9,6 +9,7 @@ import type {
 } from '@prompturtle/shared';
 
 import { writeAuditEvent } from '../../lib/audit.js';
+import { getGuardrailConfig } from '../../lib/guardrail-config.js';
 import logger from '../../lib/logger.js';
 import { BaseMCPServer } from '../BaseMCPServer.js';
 import type { ToolCallContext, ToolCallResult, ToolDefinition } from '../types.js';
@@ -92,17 +93,29 @@ function scoreComplianceFlags(flags: ScoreShipmentInput['complianceFlags']): Ris
   return makeFactor(10, weight, 'Only informational compliance flags were raised', signals);
 }
 
-function scoreCarrierApproval(carrierResult: ScoreShipmentInput['carrierResult']): RiskFactor {
+function scoreCarrierApproval(
+  carrierResult: ScoreShipmentInput['carrierResult'],
+  approvedCarriers: string[],
+): RiskFactor {
   const weight = WEIGHTS.carrierApproval;
   const signals: string[] = [];
   let score: number;
   let detail: string;
 
-  if (!carrierResult || carrierResult.isApprovedCarrier === undefined) {
+  // Resolve approval status: an explicit input flag wins; otherwise derive it
+  // from the tenant's configured approved-carrier list (case-insensitive) when
+  // both a carrier name and a non-empty list are available.
+  let isApproved = carrierResult?.isApprovedCarrier;
+  if (isApproved === undefined && carrierResult?.carrier && approvedCarriers.length > 0) {
+    const name = carrierResult.carrier.toLowerCase();
+    isApproved = approvedCarriers.some((c) => c.toLowerCase() === name);
+  }
+
+  if (!carrierResult || isApproved === undefined) {
     score = 20;
     detail = 'No carrier approval result was provided';
     signals.push('carrier_not_evaluated');
-  } else if (carrierResult.isApprovedCarrier) {
+  } else if (isApproved) {
     score = 0;
     detail = `Carrier ${carrierResult.carrier ?? 'unknown'} is on the approved carrier list`;
     signals.push('carrier_approved');
@@ -121,29 +134,33 @@ function scoreCarrierApproval(carrierResult: ScoreShipmentInput['carrierResult']
   return makeFactor(score, weight, detail, signals);
 }
 
-function scoreCostThreshold(shipmentCost: ScoreShipmentInput['shipmentCost']): RiskFactor {
+function scoreCostThreshold(
+  shipmentCost: ScoreShipmentInput['shipmentCost'],
+  costThreshold: number,
+): RiskFactor {
   const weight = WEIGHTS.costThreshold;
 
   if (!shipmentCost) {
     return makeFactor(0, weight, 'No shipment cost was provided', ['cost_not_evaluated']);
   }
 
+  const threshold = costThreshold > 0 ? costThreshold : DEFAULT_COST_THRESHOLD_USD;
   const { total, currency } = shipmentCost;
-  const ratio = total / DEFAULT_COST_THRESHOLD_USD;
+  const ratio = total / threshold;
 
   if (ratio <= 0.5) {
-    return makeFactor(0, weight, `Shipment cost ${total} ${currency} is well below the $${DEFAULT_COST_THRESHOLD_USD} threshold`, ['cost_low']);
+    return makeFactor(0, weight, `Shipment cost ${total} ${currency} is well below the $${threshold} threshold`, ['cost_low']);
   }
   if (ratio <= 0.8) {
-    return makeFactor(20, weight, `Shipment cost ${total} ${currency} is approaching the $${DEFAULT_COST_THRESHOLD_USD} threshold`, ['cost_moderate']);
+    return makeFactor(20, weight, `Shipment cost ${total} ${currency} is approaching the $${threshold} threshold`, ['cost_moderate']);
   }
   if (ratio <= 1.0) {
-    return makeFactor(55, weight, `Shipment cost ${total} ${currency} is near the $${DEFAULT_COST_THRESHOLD_USD} threshold`, ['cost_near_threshold']);
+    return makeFactor(55, weight, `Shipment cost ${total} ${currency} is near the $${threshold} threshold`, ['cost_near_threshold']);
   }
   return makeFactor(
     90,
     weight,
-    `Shipment cost ${total} ${currency} exceeds the $${DEFAULT_COST_THRESHOLD_USD} threshold`,
+    `Shipment cost ${total} ${currency} exceeds the $${threshold} threshold`,
     ['cost_exceeds_threshold', 'high_cost_approval'],
   );
 }
@@ -151,11 +168,18 @@ function scoreCostThreshold(shipmentCost: ScoreShipmentInput['shipmentCost']): R
 function scoreCustomsReadiness(
   customsRequired: ScoreShipmentInput['customsRequired'],
   customsBroker: ScoreShipmentInput['customsBroker'],
+  requireBrokerVerify: boolean,
 ): RiskFactor {
   const weight = WEIGHTS.customsReadiness;
 
   if (!customsRequired) {
     return makeFactor(0, weight, 'Customs clearance is not required for this shipment', ['customs_not_required']);
+  }
+
+  // When the tenant has disabled broker verification, customs readiness is not
+  // a risk driver — the customs_flag does not fire regardless of broker status.
+  if (!requireBrokerVerify) {
+    return makeFactor(0, weight, 'Customs broker verification is disabled by configuration', ['customs_broker_verify_disabled']);
   }
 
   if (!customsBroker) {
@@ -265,11 +289,14 @@ export class RiskScorerMCP extends BaseMCPServer {
   private async scoreShipment(input: unknown, ctx: ToolCallContext): Promise<ToolCallResult> {
     const parsed = ScoreShipmentInputSchema.parse(input);
 
+    // Per-tenant guardrail config drives the cost, carrier, and customs factors.
+    const config = await getGuardrailConfig(ctx.tenantId);
+
     const htsConfidence = scoreHtsConfidence(parsed.htsResult);
     const complianceFlags = scoreComplianceFlags(parsed.complianceFlags);
-    const carrierApproval = scoreCarrierApproval(parsed.carrierResult);
-    const costThreshold = scoreCostThreshold(parsed.shipmentCost);
-    const customsReadiness = scoreCustomsReadiness(parsed.customsRequired, parsed.customsBroker);
+    const carrierApproval = scoreCarrierApproval(parsed.carrierResult, config.approvedCarriers);
+    const costThreshold = scoreCostThreshold(parsed.shipmentCost, config.costThreshold);
+    const customsReadiness = scoreCustomsReadiness(parsed.customsRequired, parsed.customsBroker, config.requireBrokerVerify);
 
     const factors = [htsConfidence, complianceFlags, carrierApproval, costThreshold, customsReadiness];
 

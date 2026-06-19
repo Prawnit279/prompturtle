@@ -97,3 +97,16 @@ export interface WebhookDeliveriesResponse {
   limit:      number;
   pages:      number;
 }
+
+// ---- Guardrail configuration ----
+
+export interface GuardrailConfig {
+  id:                  string;
+  tenantId:            string;
+  costThreshold:       number;
+  approvedCarriers:    string[];
+  requireBrokerVerify: boolean;
+  autoApproveBelow:    number;
+  updatedAt:           string;
+  isDefault?:          boolean;
+}

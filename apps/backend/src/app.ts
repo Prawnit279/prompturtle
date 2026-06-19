@@ -15,6 +15,7 @@ import { ensureTenant } from './middleware/ensureTenant.js';
 import { withTenantContext } from './middleware/withTenantContext.js';
 import billingRouter from './routes/billing.js';
 import docsRouter from './routes/docs.js';
+import guardrailsRouter from './routes/guardrails.js';
 import clerkWebhookRouter from './routes/clerk-webhooks.js';
 import webhookRouter from './routes/webhooks.js';
 import keysRouter from './routes/keys.js';
@@ -145,6 +146,7 @@ protectedRouter.use('/logs',    logsRouter);
 protectedRouter.use('/usage',   usageRouter);
 protectedRouter.use('/risk',    riskRouter);
 protectedRouter.use('/webhooks', webhookEndpointsRouter);
+protectedRouter.use('/guardrails', guardrailsRouter);
 
 app.use('/api', protectedRouter);
 
