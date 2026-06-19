@@ -259,7 +259,7 @@ export const pricingTiers: PricingTier[] = [
     price:       1999,
     period:      'mo',
     calls:       'Unlimited',
-    rateLimit:   '300 req / min (2,000 burst)',
+    rateLimit:   '300 req / min',
     features: [
       'All 5 Phase 1 modules',
       'Full audit trail',

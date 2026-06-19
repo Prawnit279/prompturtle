@@ -247,7 +247,7 @@ export const pricingContent: PricingContent = {
     },
     {
       name: 'Enterprise', tag: 'established', amt: '$1999', per: '/ mo',
-      meta: ['Unlimited', '300 req / min (2,000 burst)'],
+      meta: ['Unlimited', '300 req / min'],
       feats: ['All 5 Phase 1 modules', 'Full audit trail', 'Dedicated support', 'Custom guardrail rules', 'SLA guarantee', 'Custom contract'],
       cta: 'Contact us', ctaKind: 'ghost', reco: false,
       ctaHref: 'mailto:hello@progue.ai',
