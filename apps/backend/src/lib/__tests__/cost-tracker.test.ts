@@ -160,11 +160,22 @@ describe('trackedCall', () => {
     // First count (per-minute) = 0, second count (per-month) = STARTER limit
     mockPrisma.toolCall.count
       .mockResolvedValueOnce(0) // per-minute check: under limit
-      .mockResolvedValueOnce(1_000); // per-month check: at limit (STARTER = 1000)
+      .mockResolvedValueOnce(10_000); // per-month check: at limit (STARTER = 10,000)
 
     await expect(trackedCall(defaultOptions, async () => ({}))).rejects.toThrow(
       TierLimitExceededError,
     );
+  });
+
+  it('does not enforce a monthly cap for ENTERPRISE (unlimited)', async () => {
+    // callsPerMonth === 0 means unlimited — a huge month count must not throw.
+    mockPrisma.toolCall.count
+      .mockResolvedValueOnce(0)        // per-minute check: under ENTERPRISE 300/min
+      .mockResolvedValueOnce(5_000_000); // per-month check: would exceed any finite cap
+
+    await expect(
+      trackedCall({ ...defaultOptions, tier: TenantTier.ENTERPRISE }, async () => ({ ok: true })),
+    ).resolves.toEqual({ ok: true });
   });
 
   it('does not throw when under both limits', async () => {

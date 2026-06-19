@@ -222,9 +222,9 @@ Phase2Feature:   CARBON_TRACKING | SUPPLIER_RISK  ← DO NOT REMOVE
 
 | Tier | Price | Calls/min | Calls/month |
 |---|---|---|---|
-| STARTER | $149/mo | 10 | 1,000 |
-| GROWTH | $599/mo | 60 | 10,000 |
-| ENTERPRISE | $1,999/mo | 300 | 100,000 |
+| STARTER | $149/mo | 10 | 10,000 |
+| GROWTH | $599/mo | 60 | 100,000 |
+| ENTERPRISE | $1,999/mo | 300 | Unlimited (`callsPerMonth: 0`) |
 
 ---
 

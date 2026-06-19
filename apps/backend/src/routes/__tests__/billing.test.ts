@@ -144,7 +144,7 @@ describe('GET /api/billing/status', () => {
 
   it('includes call limit matching the tier', async () => {
     const res = await request(app).get('/api/billing/status').set(AUTH);
-    expect(res.body.callLimit).toBe(1_000); // STARTER limit
+    expect(res.body.callLimit).toBe(10_000); // STARTER limit
   });
 
   it('returns 401 without auth', async () => {
