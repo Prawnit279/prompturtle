@@ -36,6 +36,7 @@ import ReferenceErrors         from './pages/docs/reference/Errors';
 import ReferenceRateLimits     from './pages/docs/reference/RateLimits';
 import ReferenceVersioning     from './pages/docs/reference/Versioning';
 import ReferenceWebhooks       from './pages/docs/reference/Webhooks';
+import ReferenceGuardrails     from './pages/docs/reference/Guardrails';
 import GuidesVendorOnboarding  from './pages/docs/guides/VendorOnboarding';
 import GuidesBolFlow           from './pages/docs/guides/BolFlow';
 import GuidesApprovalRoles     from './pages/docs/guides/ApprovalRoles';
@@ -82,6 +83,7 @@ export default function App() {
           <Route path="reference/rate-limits"    element={<ReferenceRateLimits />} />
           <Route path="reference/versioning"     element={<ReferenceVersioning />} />
           <Route path="reference/webhooks"       element={<ReferenceWebhooks />} />
+          <Route path="reference/guardrails"     element={<ReferenceGuardrails />} />
           <Route path="guides/vendor-onboarding" element={<GuidesVendorOnboarding />} />
           <Route path="guides/bol-flow"          element={<GuidesBolFlow />} />
           <Route path="guides/approval-roles"    element={<GuidesApprovalRoles />} />
