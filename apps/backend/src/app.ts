@@ -159,7 +159,17 @@ app.use((err: unknown, req: Request, res: Response, _next: NextFunction): void =
     return;
   }
   if (err instanceof TierLimitExceededError) {
-    res.status(429).json({ error: 'rate_limit_exceeded' });
+    // `error` stays a stable machine code; the extra fields give clients the
+    // context to surface an upgrade prompt without a second round-trip.
+    const appUrl = process.env.APP_URL ?? 'https://app.progue.ai';
+    res.status(429).json({
+      error:      'rate_limit_exceeded',
+      tier:       err.tier,
+      limitType:  err.limitType,
+      callsUsed:  err.current,
+      callsLimit: err.max,
+      upgradeUrl: `${appUrl}/dashboard/billing`,
+    });
     return;
   }
 
