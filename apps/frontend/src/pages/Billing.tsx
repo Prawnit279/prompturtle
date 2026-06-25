@@ -2,6 +2,7 @@ import { useEffect, useState, useCallback } from 'react';
 import { useAuth } from '@clerk/clerk-react';
 
 import { apiFetch } from '../lib/api';
+import { PLANS, type StripeEnvKey } from '../content/plans';
 
 interface BillingStatus {
   tier:               'FREE' | 'STARTER' | 'GROWTH' | 'ENTERPRISE';
@@ -14,29 +15,13 @@ interface BillingStatus {
   callLimit:          number;
 }
 
-const TIERS = [
-  {
-    key:      'STARTER'    as const,
-    label:    'Starter',
-    price:    '$149',
-    calls:    '10,000',
-    priceEnv: import.meta.env.VITE_STRIPE_PRICE_STARTER as string | undefined,
-  },
-  {
-    key:      'GROWTH'     as const,
-    label:    'Growth',
-    price:    '$599',
-    calls:    '100,000',
-    priceEnv: import.meta.env.VITE_STRIPE_PRICE_GROWTH as string | undefined,
-  },
-  {
-    key:      'ENTERPRISE' as const,
-    label:    'Enterprise',
-    price:    '$1,999',
-    calls:    'Unlimited',
-    priceEnv: import.meta.env.VITE_STRIPE_PRICE_ENTERPRISE as string | undefined,
-  },
-] as const;
+// Stripe price ids per paid tier — the only billing-specific bit the dashboard
+// adds on top of the shared PLANS source of truth.
+const STRIPE_PRICE_ENV: Record<StripeEnvKey, string | undefined> = {
+  STARTER:    import.meta.env.VITE_STRIPE_PRICE_STARTER    as string | undefined,
+  GROWTH:     import.meta.env.VITE_STRIPE_PRICE_GROWTH     as string | undefined,
+  ENTERPRISE: import.meta.env.VITE_STRIPE_PRICE_ENTERPRISE as string | undefined,
+};
 
 export default function Billing() {
   const { getToken }               = useAuth();
@@ -153,7 +138,7 @@ export default function Billing() {
               </div>
               {status.isFreeTier && (
                 <div style={{ fontSize: '11px', color: 'var(--text-3)', marginTop: '4px', fontFamily: 'var(--mono)' }}>
-                  1,000 calls/month · No expiry · No credit card
+                  {status.callLimit.toLocaleString()} calls/month · No expiry · No credit card
                 </div>
               )}
             </div>
@@ -188,53 +173,70 @@ export default function Billing() {
         </div>
       )}
 
-      {/* Tier cards */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '12px' }}>
-        {TIERS.map((tier) => {
-          const isCurrent = status?.tier === tier.key;
+      {/* Plan cards — same four plans, numbers, and features as the marketing
+          pricing page (single source: content/plans.ts). */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '12px', alignItems: 'stretch' }}>
+        {PLANS.map((plan) => {
+          const isCurrent  = status?.tier === plan.tier;
+          const priceId    = plan.stripeEnvKey ? STRIPE_PRICE_ENV[plan.stripeEnvKey] : undefined;
+          const canUpgrade = !isCurrent && Boolean(plan.stripeEnvKey);
           return (
             <div
-              key={tier.key}
+              key={plan.tier}
               style={{
                 background: 'var(--surface)',
-                border: `1px solid ${isCurrent ? 'var(--brand)' : 'var(--border)'}`,
+                border: `1px solid ${isCurrent || plan.recommended ? 'var(--brand)' : 'var(--border)'}`,
                 borderRadius: '10px', padding: '20px', position: 'relative',
+                display: 'flex', flexDirection: 'column',
               }}
             >
-              {isCurrent && (
+              {(isCurrent || plan.recommended) && (
                 <div style={{
                   position: 'absolute', top: '12px', right: '12px',
                   fontSize: '10px', fontFamily: 'var(--mono)', color: 'var(--brand)',
                   letterSpacing: '0.05em', textTransform: 'uppercase',
                 }}>
-                  Current
+                  {isCurrent ? 'Current' : 'Recommended'}
                 </div>
               )}
               <div style={{ fontSize: '14px', fontWeight: 600, color: 'var(--text)', marginBottom: '4px' }}>
-                {tier.label}
+                {plan.name}
               </div>
               <div style={{ fontSize: '22px', fontWeight: 700, color: 'var(--text)', marginBottom: '2px' }}>
-                {tier.price}
+                ${plan.priceUsd}
                 <span style={{ fontSize: '12px', fontWeight: 400, color: 'var(--text-2)' }}>/mo</span>
               </div>
-              <div style={{ fontSize: '12px', color: 'var(--text-2)', marginBottom: '16px', fontFamily: 'var(--mono)' }}>
-                {tier.calls} calls/month
+              <div style={{ fontSize: '12px', color: 'var(--text-2)', fontFamily: 'var(--mono)' }}>
+                {plan.calls}
               </div>
+              <div style={{ fontSize: '11px', color: 'var(--text-3)', fontFamily: 'var(--mono)', marginBottom: '14px' }}>
+                {plan.rateLimit}
+              </div>
+
+              <ul style={{ listStyle: 'none', padding: 0, margin: '0 0 16px', flex: 1, display: 'flex', flexDirection: 'column', gap: '7px' }}>
+                {plan.features.map((f) => (
+                  <li key={f} style={{ display: 'flex', alignItems: 'flex-start', gap: '7px', fontSize: '12px', color: 'var(--text-2)' }}>
+                    <span style={{ marginTop: '5px', width: '5px', height: '5px', borderRadius: '50%', background: 'var(--success)', flexShrink: 0 }} />
+                    {f}
+                  </li>
+                ))}
+              </ul>
+
               <button
-                onClick={() => void handleUpgrade(tier.priceEnv)}
-                disabled={isCurrent || actionLoading}
+                onClick={() => { if (canUpgrade) void handleUpgrade(priceId); }}
+                disabled={!canUpgrade || actionLoading}
                 style={{
                   width: '100%', padding: '8px',
-                  background: isCurrent ? 'transparent' : 'var(--brand)',
-                  border: isCurrent ? '1px solid var(--border)' : 'none',
+                  background: canUpgrade ? 'var(--brand)' : 'transparent',
+                  border: canUpgrade ? 'none' : '1px solid var(--border)',
                   borderRadius: '7px', fontSize: '12px', fontWeight: 500,
-                  color: isCurrent ? 'var(--text-2)' : '#fff',
-                  cursor: isCurrent ? 'default' : 'pointer',
-                  opacity: actionLoading && !isCurrent ? 0.5 : 1,
+                  color: canUpgrade ? '#fff' : 'var(--text-2)',
+                  cursor: canUpgrade ? 'pointer' : 'default',
+                  opacity: actionLoading && canUpgrade ? 0.5 : 1,
                   fontFamily: 'var(--sans)',
                 }}
               >
-                {isCurrent ? 'Current plan' : `Upgrade to ${tier.label}`}
+                {isCurrent ? 'Current plan' : canUpgrade ? `Upgrade to ${plan.name}` : 'Free plan'}
               </button>
             </div>
           );

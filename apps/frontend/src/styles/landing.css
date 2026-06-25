@@ -277,7 +277,8 @@
 .guard-card .gd { font-size: 13px; color: var(--text2); line-height: 1.5; }
 
 /* --- PRICING (07) ----------------------------------------------------------*/
-.price-grid { display: grid; grid-template-columns: repeat(3,1fr); gap: clamp(16px,2vw,24px); align-items: start; }
+.price-grid { display: grid; grid-template-columns: repeat(4,1fr); gap: clamp(16px,2vw,24px); align-items: start; }
+@media (max-width: 1080px) { .price-grid { grid-template-columns: repeat(2,1fr); } }
 .price-card {
   border: 1px solid var(--hair); border-radius: 20px;
   padding: clamp(26px,2.6vw,34px); background: var(--surface);

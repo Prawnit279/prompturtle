@@ -1,6 +1,8 @@
 // Single source of truth for all Avgstar landing page copy and data.
 // Future edits: change values here — components contain zero hardcoded strings.
 
+import { PLANS } from './plans';
+
 export type BtnKind = 'btn1' | 'btn2';
 export type CtaKind = 'solid' | 'ghost';
 export type GlyphType = 'doc' | 'tree' | 'hex' | 'branch' | 'chain';
@@ -225,34 +227,31 @@ export const guardrailsContent: GuardrailsContent = {
   ],
 };
 
+// Small flavor labels rendered as the card's `tier-tag`; keyed by plan tier.
+const PRICING_TAG: Record<string, string> = {
+  FREE: 'start here', STARTER: 'eval', GROWTH: 'recommended', ENTERPRISE: 'established',
+};
+
+// Tiers are DERIVED from the single source of truth (PLANS, src/content/plans.ts)
+// so the marketing pricing and the dashboard billing page can never disagree.
 export const pricingContent: PricingContent = {
   num:   '07',
   label: 'Pricing',
-  h2:    'Simple, transparent pricing.',
-  sub:   'Self-serve for Starter and Growth. Enterprise involves a 30-minute scoping call — no procurement theater.',
-  tiers: [
-    {
-      name: 'Starter', tag: 'eval', amt: '$149', per: '/ mo',
-      meta: ['10,000 calls / mo', '10 req / min'],
-      feats: ['All 5 Phase 1 modules', 'Full audit trail', 'Email support', 'Clerk-based auth'],
-      cta: 'Get API key', ctaKind: 'ghost', reco: false,
-      ctaHref: 'https://app.progue.ai/sign-up',
-    },
-    {
-      name: 'Growth', tag: 'recommended', amt: '$599', per: '/ mo',
-      meta: ['100,000 calls / mo', '60 req / min'],
-      feats: ['All 5 Phase 1 modules', 'Full audit trail', 'Priority email support', 'Usage analytics dashboard', 'Clerk-based auth'],
-      cta: 'Get API key', ctaKind: 'solid', reco: true, flag: 'most teams start here',
-      ctaHref: 'https://app.progue.ai/sign-up',
-    },
-    {
-      name: 'Enterprise', tag: 'established', amt: '$1999', per: '/ mo',
-      meta: ['Unlimited', '300 req / min'],
-      feats: ['All 5 Phase 1 modules', 'Full audit trail', 'Dedicated support', 'Custom guardrail rules', 'SLA guarantee', 'Custom contract'],
-      cta: 'Contact us', ctaKind: 'ghost', reco: false,
-      ctaHref: 'mailto:hello@progue.ai',
-    },
-  ],
+  h2:    'Start free. Scale when you’re ready.',
+  sub:   'Start on the free tier — no credit card. Self-serve for Starter and Growth; Enterprise involves a 30-minute scoping call, no procurement theater.',
+  tiers: PLANS.map((plan): PricingTierEntry => ({
+    name:    plan.name,
+    tag:     PRICING_TAG[plan.tier] ?? '',
+    amt:     `$${plan.priceUsd}`,
+    per:     '/ mo',
+    meta:    [plan.calls, plan.rateLimit],
+    feats:   plan.features,
+    cta:     plan.cta,
+    ctaKind: plan.recommended ? 'solid' : 'ghost',
+    reco:    plan.recommended,
+    ctaHref: plan.ctaHref,
+    ...(plan.recommended ? { flag: 'most teams start here' } : {}),
+  })),
 };
 
 export const finalContent: FinalContent = {

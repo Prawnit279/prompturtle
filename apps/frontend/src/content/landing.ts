@@ -208,71 +208,9 @@ export const guardrails = {
 // ─── Pricing ───────────────────────────────────────────────────────────────
 // High-churn: pricing details live exclusively here. Editing price/calls = one line.
 
-export interface PricingTier {
-  name:        string;
-  price:       number;
-  period:      'mo';
-  calls:       string;
-  rateLimit:   string;
-  features:    string[];
-  highlighted: boolean;
-  cta:         string;
-  ctaHref:     string;
-}
-
-export const pricingTiers: PricingTier[] = [
-  {
-    name:        'Starter',
-    price:       149,
-    period:      'mo',
-    calls:       '10,000 calls / mo',
-    rateLimit:   '10 req / min',
-    features: [
-      'All 5 Phase 1 modules',
-      'Full audit trail',
-      'Email support',
-      'Clerk-based auth',
-    ],
-    highlighted: false,
-    cta:         'Get API key',
-    ctaHref:     'https://app.progue.ai/sign-up',
-  },
-  {
-    name:        'Growth',
-    price:       599,
-    period:      'mo',
-    calls:       '100,000 calls / mo',
-    rateLimit:   '60 req / min',
-    features: [
-      'All 5 Phase 1 modules',
-      'Full audit trail',
-      'Priority email support',
-      'Usage analytics dashboard',
-      'Clerk-based auth',
-    ],
-    highlighted: true,
-    cta:         'Get API key',
-    ctaHref:     'https://app.progue.ai/sign-up',
-  },
-  {
-    name:        'Enterprise',
-    price:       1999,
-    period:      'mo',
-    calls:       'Unlimited',
-    rateLimit:   '300 req / min',
-    features: [
-      'All 5 Phase 1 modules',
-      'Full audit trail',
-      'Dedicated support',
-      'Custom guardrail rules',
-      'SLA guarantee',
-      'Custom contract',
-    ],
-    highlighted: false,
-    cta:         'Contact us',
-    ctaHref:     'mailto:hello@progue.ai',
-  },
-];
+// Pricing tiers now live in a single source of truth shared with the dashboard:
+// see `src/content/plans.ts` (PLANS). Kept out of this file so marketing and
+// the billing dashboard can never drift.
 
 // ─── Final CTA ─────────────────────────────────────────────────────────────
 
