@@ -1,3 +1,5 @@
+import { randomUUID } from 'crypto';
+
 import type { InputJsonValue } from '@prisma/client/runtime/library';
 
 import { AuditAction, ApprovalStatus, ApprovalTrigger } from '@prompturtle/shared';
@@ -6,9 +8,12 @@ import type { WebhookEventType } from '@prompturtle/shared';
 import { prisma } from './db.js';
 import logger from './logger.js';
 import { writeAuditEvent } from './audit.js';
+import { getGuardrailConfig } from './guardrail-config.js';
 import { dispatch } from './webhook-service.js';
 
 // ---- Boundary conditions for trigger evaluation ----
+// HIGH_SHIPMENT_COST_USD is the platform default; the per-tenant
+// GuardrailConfig.costThreshold overrides it at evaluation time.
 const THRESHOLDS = {
   HIGH_SHIPMENT_COST_USD: 10_000,
   LOW_HTS_CONFIDENCE:     0.7,
@@ -61,15 +66,17 @@ export interface TriggerContext {
 
 /**
  * Returns true if the provided context exceeds the threshold for the given trigger.
- * Pure function — no I/O.
+ * Pure function — no I/O. `costThresholdUsd` overrides the platform default for
+ * the HIGH_SHIPMENT_COST trigger (sourced from the tenant's GuardrailConfig).
  */
 export function evaluateTrigger(
   trigger: ApprovalTrigger,
   context: TriggerContext,
+  costThresholdUsd: number = THRESHOLDS.HIGH_SHIPMENT_COST_USD,
 ): boolean {
   switch (trigger) {
     case ApprovalTrigger.HIGH_SHIPMENT_COST:
-      return (context.shipmentCostUsd ?? 0) > THRESHOLDS.HIGH_SHIPMENT_COST_USD;
+      return (context.shipmentCostUsd ?? 0) > costThresholdUsd;
 
     case ApprovalTrigger.LOW_HTS_CONFIDENCE:
       return (context.htsConfidence ?? 1) < THRESHOLDS.LOW_HTS_CONFIDENCE;
@@ -100,7 +107,43 @@ export async function checkAndRequestApproval(params: {
 }): Promise<ApprovalRequestRecord | null> {
   const { tenantId, trigger, context, expiresAt } = params;
 
-  if (!evaluateTrigger(trigger, context)) {
+  const config = await getGuardrailConfig(tenantId);
+
+  // Auto-approve short-circuit: low-value *cost-driven* approvals below the
+  // configured floor skip the human queue. Scoped to HIGH_SHIPMENT_COST so a
+  // carrier-change or low-HTS-confidence review is never auto-approved just
+  // because the shipment is cheap. Still audited. Disabled when autoApproveBelow
+  // is 0 (the default).
+  const cost = context.shipmentCostUsd;
+  if (
+    trigger === ApprovalTrigger.HIGH_SHIPMENT_COST &&
+    config.autoApproveBelow > 0 &&
+    typeof cost === 'number' &&
+    cost < config.autoApproveBelow
+  ) {
+    await writeAuditEvent({
+      tenantId,
+      action:     AuditAction.APPROVAL_DECIDED,
+      entityType: 'approval_request',
+      // Synthetic id — an auto-approval persists no ApprovalRequest row, so this
+      // does not reference a real request record.
+      entityId:   randomUUID(),
+      payload: {
+        decision:         ApprovalStatus.APPROVED,
+        reason:           'auto_approved_below_threshold',
+        trigger,
+        shipmentCostUsd:  cost,
+        autoApproveBelow: config.autoApproveBelow,
+      },
+    });
+    logger.info(
+      { tenantId, trigger, cost, autoApproveBelow: config.autoApproveBelow },
+      'approval.auto_approved',
+    );
+    return null;
+  }
+
+  if (!evaluateTrigger(trigger, context, config.costThreshold)) {
     return null;
   }
 

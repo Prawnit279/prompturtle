@@ -3,7 +3,7 @@
  * crossings each fire a usage.threshold_reached webhook exactly once, and that
  * the 80% crossing also sends the warning email.
  *
- * STARTER tier: 1000 calls/month → 80% boundary = 800, 100% boundary = 1000.
+ * STARTER tier: 10,000 calls/month → 80% boundary = 8,000, 100% boundary = 10,000.
  */
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -40,7 +40,7 @@ beforeEach(() => {
 
 describe('checkAndWarnUsage', () => {
   it('dispatches usage.threshold_reached(80) and emails on the 80% crossing', async () => {
-    await checkAndWarnUsage('tenant-1', TenantTier.STARTER, 800);
+    await checkAndWarnUsage('tenant-1', TenantTier.STARTER, 8_000);
 
     expect(mockDispatch).toHaveBeenCalledWith(
       'tenant-1',
@@ -51,7 +51,7 @@ describe('checkAndWarnUsage', () => {
   });
 
   it('dispatches usage.threshold_reached(100) on the 100% crossing', async () => {
-    await checkAndWarnUsage('tenant-1', TenantTier.STARTER, 1000);
+    await checkAndWarnUsage('tenant-1', TenantTier.STARTER, 10_000);
 
     expect(mockDispatch).toHaveBeenCalledWith(
       'tenant-1',
@@ -61,15 +61,42 @@ describe('checkAndWarnUsage', () => {
   });
 
   it('does nothing when the call is not on a threshold boundary', async () => {
-    await checkAndWarnUsage('tenant-1', TenantTier.STARTER, 500);
+    await checkAndWarnUsage('tenant-1', TenantTier.STARTER, 5_000);
 
     expect(mockDispatch).not.toHaveBeenCalled();
     expect(mockEmail).not.toHaveBeenCalled();
   });
 
   it('fires the 80% threshold only once, not on every call above 80%', async () => {
-    await checkAndWarnUsage('tenant-1', TenantTier.STARTER, 801); // already past boundary
+    await checkAndWarnUsage('tenant-1', TenantTier.STARTER, 8_001); // already past boundary
 
     expect(mockDispatch).not.toHaveBeenCalled();
+  });
+
+  it('dispatches usage.threshold_reached(80) for FREE tier at 800 calls', async () => {
+    await checkAndWarnUsage('tenant-1', TenantTier.FREE, 800);
+
+    expect(mockDispatch).toHaveBeenCalledWith(
+      'tenant-1',
+      'usage.threshold_reached',
+      expect.objectContaining({ threshold: 80 }),
+    );
+  });
+
+  it('dispatches usage.threshold_reached(100) for FREE tier at 1,000 calls', async () => {
+    await checkAndWarnUsage('tenant-1', TenantTier.FREE, 1_000);
+
+    expect(mockDispatch).toHaveBeenCalledWith(
+      'tenant-1',
+      'usage.threshold_reached',
+      expect.objectContaining({ threshold: 100 }),
+    );
+  });
+
+  it('never enforces a usage threshold for ENTERPRISE (unlimited)', async () => {
+    await checkAndWarnUsage('tenant-1', TenantTier.ENTERPRISE, 500_000);
+
+    expect(mockDispatch).not.toHaveBeenCalled();
+    expect(mockEmail).not.toHaveBeenCalled();
   });
 });

@@ -99,7 +99,8 @@ export async function trackedCall<T>(
     },
   });
 
-  if (callsThisMonth >= limits.callsPerMonth) {
+  // callsPerMonth === 0 means unlimited (Enterprise) — skip the monthly cap.
+  if (limits.callsPerMonth > 0 && callsThisMonth >= limits.callsPerMonth) {
     throw new TierLimitExceededError(
       tenantId,
       tier,

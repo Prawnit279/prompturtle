@@ -39,7 +39,7 @@ export async function ensureTenant(_req: Request, res: Response, next: NextFunct
       create: {
         id:   tenantId,
         name: 'Organization',
-        tier: TenantTier.STARTER,
+        tier: TenantTier.FREE,
       },
     });
     knownTenants.add(tenantId);

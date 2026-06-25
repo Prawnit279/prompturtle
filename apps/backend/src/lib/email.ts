@@ -64,10 +64,22 @@ export async function sendWelcomeEmail(opts: {
   to: string;
   tenantName: string;
   apiKey: string;
+  /** Tenant tier — drives the free vs paid plan copy. Defaults to FREE. */
+  tier?: string;
 }): Promise<SendResult> {
+  const isFree = (opts.tier ?? 'FREE') === 'FREE';
+
+  const subject = isFree
+    ? "You're in — start building with Progue"
+    : 'Welcome to Progue.ai — your API key is ready';
+
+  const planBlock = isFree
+    ? `<p style="color: #94A3B8;">You&apos;re on the <strong style="color: #E2E8F0;">free tier</strong> — 1,000 API calls included, no card needed. When you&apos;re ready to scale, upgrade from your billing page.</p>`
+    : `<p style="color: #94A3B8;">You&apos;re on the <strong style="color: #E2E8F0;">${opts.tier} plan</strong>.</p>`;
+
   return send({
     to:      opts.to,
-    subject: 'Welcome to Progue.ai — your API key is ready',
+    subject,
     html: `
       <div style="font-family: 'Geist', system-ui, sans-serif; max-width: 600px; margin: 0 auto; background: #060B1A; color: #E2E8F0; padding: 40px;">
         <h1 style="color: #5B3A82; margin-bottom: 8px;">Welcome to Progue<span style="color: #5B3A82;">.</span></h1>
@@ -79,7 +91,7 @@ export async function sendWelcomeEmail(opts: {
           <p style="color: #475569; font-size: 11px; margin: 12px 0 0;">This key is shown once. Store it securely.</p>
         </div>
 
-        <p style="color: #94A3B8;">You&apos;re on the <strong style="color: #E2E8F0;">Starter plan</strong> — 1,000 API calls/month.</p>
+        ${planBlock}
 
         <div style="margin-top: 32px; padding-top: 24px; border-top: 1px solid #1E293B;">
           <a href="${process.env.FRONTEND_URL}/dashboard" style="background: #5B3A82; color: #fff; text-decoration: none; padding: 12px 24px; border-radius: 6px; font-size: 14px;">Open Dashboard &rarr;</a>

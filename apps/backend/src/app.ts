@@ -15,6 +15,7 @@ import { ensureTenant } from './middleware/ensureTenant.js';
 import { withTenantContext } from './middleware/withTenantContext.js';
 import billingRouter from './routes/billing.js';
 import docsRouter from './routes/docs.js';
+import guardrailsRouter from './routes/guardrails.js';
 import clerkWebhookRouter from './routes/clerk-webhooks.js';
 import webhookRouter from './routes/webhooks.js';
 import keysRouter from './routes/keys.js';
@@ -145,6 +146,7 @@ protectedRouter.use('/logs',    logsRouter);
 protectedRouter.use('/usage',   usageRouter);
 protectedRouter.use('/risk',    riskRouter);
 protectedRouter.use('/webhooks', webhookEndpointsRouter);
+protectedRouter.use('/guardrails', guardrailsRouter);
 
 app.use('/api', protectedRouter);
 
@@ -157,7 +159,17 @@ app.use((err: unknown, req: Request, res: Response, _next: NextFunction): void =
     return;
   }
   if (err instanceof TierLimitExceededError) {
-    res.status(429).json({ error: 'rate_limit_exceeded' });
+    // `error` stays a stable machine code; the extra fields give clients the
+    // context to surface an upgrade prompt without a second round-trip.
+    const appUrl = process.env.APP_URL ?? 'https://app.progue.ai';
+    res.status(429).json({
+      error:      'rate_limit_exceeded',
+      tier:       err.tier,
+      limitType:  err.limitType,
+      callsUsed:  err.current,
+      callsLimit: err.max,
+      upgradeUrl: `${appUrl}/dashboard/billing`,
+    });
     return;
   }
 

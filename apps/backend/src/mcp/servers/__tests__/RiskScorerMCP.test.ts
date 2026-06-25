@@ -25,9 +25,27 @@ vi.mock('../../../guardrails/rules/InputSchemaRule.js', () => ({
   registerToolSchema: vi.fn(),
 }));
 
+// Default to platform defaults so existing tests exercise original behavior;
+// individual tests override getGuardrailConfig to verify config-driven scoring.
+vi.mock('../../../lib/guardrail-config.js', () => ({
+  getGuardrailConfig: vi.fn().mockResolvedValue({
+    id: '', tenantId: 'tenant-test', costThreshold: 10000, approvedCarriers: [],
+    requireBrokerVerify: true, autoApproveBelow: 0, updatedAt: '',
+  }),
+}));
+
 import { writeAuditEvent } from '../../../lib/audit.js';
+import { getGuardrailConfig } from '../../../lib/guardrail-config.js';
 
 const mockWriteAuditEvent = writeAuditEvent as ReturnType<typeof vi.fn>;
+const mockGetConfig = getGuardrailConfig as ReturnType<typeof vi.fn>;
+
+function configResult(overrides: Record<string, unknown> = {}) {
+  return {
+    id: '', tenantId: 'tenant-test', costThreshold: 10000, approvedCarriers: [],
+    requireBrokerVerify: true, autoApproveBelow: 0, updatedAt: '', ...overrides,
+  };
+}
 
 function makeCtx(overrides: Partial<ToolCallContext> = {}): ToolCallContext {
   return {
@@ -44,6 +62,7 @@ let server: RiskScorerMCP;
 
 beforeEach(() => {
   vi.clearAllMocks();
+  mockGetConfig.mockResolvedValue(configResult());
   server = new RiskScorerMCP();
 });
 
@@ -353,5 +372,49 @@ describe('score_shipment — empty input', () => {
     expect(data.breakdown.carrierApproval.signals).toContain('carrier_not_evaluated');
     expect(data.breakdown.costThreshold.signals).toContain('cost_not_evaluated');
     expect(data.breakdown.customsReadiness.signals).toContain('customs_not_required');
+  });
+});
+
+// ===========================================================================
+describe('score_shipment — per-tenant guardrail config', () => {
+  async function scoreWith(config: Record<string, unknown>, input: Record<string, unknown>) {
+    mockGetConfig.mockResolvedValue(configResult(config));
+    const result = await server.executeTool('score_shipment', input, makeCtx());
+    return result.data as ShipmentRiskResult;
+  }
+
+  it('derives carrier approval from configured approvedCarriers (case-insensitive)', async () => {
+    const unapproved = await scoreWith(
+      { approvedCarriers: ['FedEx', 'UPS'] },
+      { carrierResult: { carrier: 'XPO' } },
+    );
+    expect(unapproved.breakdown.carrierApproval.signals).toContain('new_carrier_check');
+
+    const approved = await scoreWith(
+      { approvedCarriers: ['FedEx', 'UPS'] },
+      { carrierResult: { carrier: 'fedex' } },
+    );
+    expect(approved.breakdown.carrierApproval.signals).toContain('carrier_approved');
+  });
+
+  it('does not fire the customs flag when requireBrokerVerify is false', async () => {
+    const data = await scoreWith(
+      { requireBrokerVerify: false },
+      { customsRequired: true, customsBroker: { name: 'Unverified LLC', verified: false } },
+    );
+    expect(data.breakdown.customsReadiness.signals).not.toContain('customs_flag');
+    expect(data.breakdown.customsReadiness.signals).toContain('customs_broker_verify_disabled');
+    expect(data.breakdown.customsReadiness.level).toBe('low');
+  });
+
+  it('uses the configured costThreshold for the cost factor', async () => {
+    // $15,000 is well below a $50,000 threshold → low, even though it would
+    // exceed the default $10,000.
+    const data = await scoreWith(
+      { costThreshold: 50_000 },
+      { shipmentCost: { total: 15_000, currency: 'USD' } },
+    );
+    expect(data.breakdown.costThreshold.signals).toContain('cost_low');
+    expect(data.breakdown.costThreshold.score).toBe(0);
   });
 });

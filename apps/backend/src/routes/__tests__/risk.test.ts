@@ -68,6 +68,9 @@ vi.mock('../../lib/db.js', () => ({
     auditEvent: {
       create: vi.fn().mockResolvedValue({}),
     },
+    guardrailConfig: {
+      findUnique: vi.fn().mockResolvedValue(null), // no config → platform defaults
+    },
   },
 }));
 

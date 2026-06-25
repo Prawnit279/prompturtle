@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link, useLocation, Outlet } from 'react-router-dom';
 import ProgueLogo from './ProgueLogo';
+import FreeTierBanner from './FreeTierBanner';
 import { OrganizationSwitcher, UserButton, useAuth, useOrganizationList } from '@clerk/clerk-react';
 import {
   IconChartBar,
@@ -10,14 +11,16 @@ import {
   IconBook2,
   IconBell,
   IconWebhook,
+  IconShieldCog,
 } from '@tabler/icons-react';
 
 const NAV = [
-  { to: '/dashboard',          label: 'Overview', icon: IconChartBar    },
-  { to: '/dashboard/keys',     label: 'API Keys', icon: IconKey         },
-  { to: '/dashboard/logs',     label: 'Logs',     icon: IconListDetails },
-  { to: '/dashboard/webhooks', label: 'Webhooks', icon: IconWebhook     },
-  { to: '/dashboard/billing',  label: 'Billing',  icon: IconCreditCard  },
+  { to: '/dashboard',           label: 'Overview',   icon: IconChartBar    },
+  { to: '/dashboard/keys',      label: 'API Keys',   icon: IconKey         },
+  { to: '/dashboard/logs',      label: 'Logs',       icon: IconListDetails },
+  { to: '/dashboard/webhooks',  label: 'Webhooks',   icon: IconWebhook     },
+  { to: '/dashboard/billing',   label: 'Billing',    icon: IconCreditCard  },
+  { to: '/dashboard/guardrails', label: 'Guardrails', icon: IconShieldCog  },
 ] as const;
 
 export default function DashboardLayout() {
@@ -109,6 +112,9 @@ export default function DashboardLayout() {
           />
         </div>
       </header>
+
+      {/* Persistent free-tier banner — renders only for FREE tenants */}
+      <FreeTierBanner />
 
       {/* ── Body ── */}
       <div style={{ display: 'flex', flex: 1, minHeight: 0 }}>

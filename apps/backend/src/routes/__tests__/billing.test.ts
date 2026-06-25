@@ -144,7 +144,7 @@ describe('GET /api/billing/status', () => {
 
   it('includes call limit matching the tier', async () => {
     const res = await request(app).get('/api/billing/status').set(AUTH);
-    expect(res.body.callLimit).toBe(1_000); // STARTER limit
+    expect(res.body.callLimit).toBe(10_000); // STARTER limit
   });
 
   it('returns 401 without auth', async () => {
@@ -156,6 +156,22 @@ describe('GET /api/billing/status', () => {
     mockTenant.findUnique.mockResolvedValueOnce(null);
     const res = await request(app).get('/api/billing/status').set(AUTH);
     expect(res.status).toBe(404);
+  });
+
+  it('returns isFreeTier + $0 price + 1,000 limit for a FREE tenant', async () => {
+    mockTenant.findUnique.mockResolvedValueOnce({ ...SAMPLE_TENANT_NO_STRIPE, tier: 'FREE' });
+    const res = await request(app).get('/api/billing/status').set(AUTH);
+    expect(res.status).toBe(200);
+    expect(res.body.tier).toBe('FREE');
+    expect(res.body.isFreeTier).toBe(true);
+    expect(res.body.priceUsd).toBe(0);
+    expect(res.body.callLimit).toBe(1_000);
+  });
+
+  it('returns isFreeTier:false for a paid tenant', async () => {
+    const res = await request(app).get('/api/billing/status').set(AUTH);
+    expect(res.body.isFreeTier).toBe(false);
+    expect(res.body.priceUsd).toBe(149); // STARTER
   });
 });
 
@@ -240,7 +256,7 @@ describe('POST /api/billing/portal', () => {
 
     const res = await request(app).post('/api/billing/portal').set(AUTH);
     expect(res.status).toBe(400);
-    expect(res.body.error).toMatch(/No active subscription/);
+    expect(res.body.error).toMatch(/Upgrade to a paid plan/);
   });
 
   it('returns 401 without auth', async () => {

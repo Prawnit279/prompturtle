@@ -55,6 +55,7 @@ const SECTIONS: NavSection[] = [
       { label: 'Rate limits & quotas', to: '/docs/reference/rate-limits' },
       { label: 'Versioning & changelog', to: '/docs/reference/versioning' },
       { label: 'Webhooks', to: '/docs/reference/webhooks' },
+      { label: 'Guardrail configuration', to: '/docs/reference/guardrails' },
     ],
   },
   {
