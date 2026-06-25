@@ -300,6 +300,26 @@ describe('checkAndRequestApproval', () => {
       }),
     );
   });
+
+  it('does not auto-approve a non-cost trigger even when the shipment is below the floor', async () => {
+    mockGetConfig.mockResolvedValue(configResult({ autoApproveBelow: 500 }));
+
+    // Carrier change on a cheap PO must still go to human review — auto-approve
+    // is scoped to the cost trigger, not "any cheap shipment".
+    const result = await checkAndRequestApproval({
+      tenantId: TENANT,
+      trigger:  ApprovalTrigger.CARRIER_CHANGE_ON_PO,
+      context:  { shipmentCostUsd: 300, previousCarrier: 'FedEx', newCarrier: 'UPS' },
+    });
+
+    expect(result).not.toBeNull();
+    expect(mockRequest.create).toHaveBeenCalledOnce();
+    expect(mockAudit).not.toHaveBeenCalledWith(
+      expect.objectContaining({
+        payload: expect.objectContaining({ reason: 'auto_approved_below_threshold' }),
+      }),
+    );
+  });
 });
 
 // ===========================================================================

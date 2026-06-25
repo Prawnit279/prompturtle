@@ -109,15 +109,24 @@ export async function checkAndRequestApproval(params: {
 
   const config = await getGuardrailConfig(tenantId);
 
-  // Auto-approve short-circuit: shipments below the configured floor skip the
-  // human approval queue entirely. Still audited. Disabled when autoApproveBelow
-  // is 0 (the default). Only applies to cost-bearing contexts.
+  // Auto-approve short-circuit: low-value *cost-driven* approvals below the
+  // configured floor skip the human queue. Scoped to HIGH_SHIPMENT_COST so a
+  // carrier-change or low-HTS-confidence review is never auto-approved just
+  // because the shipment is cheap. Still audited. Disabled when autoApproveBelow
+  // is 0 (the default).
   const cost = context.shipmentCostUsd;
-  if (config.autoApproveBelow > 0 && typeof cost === 'number' && cost < config.autoApproveBelow) {
+  if (
+    trigger === ApprovalTrigger.HIGH_SHIPMENT_COST &&
+    config.autoApproveBelow > 0 &&
+    typeof cost === 'number' &&
+    cost < config.autoApproveBelow
+  ) {
     await writeAuditEvent({
       tenantId,
       action:     AuditAction.APPROVAL_DECIDED,
       entityType: 'approval_request',
+      // Synthetic id — an auto-approval persists no ApprovalRequest row, so this
+      // does not reference a real request record.
       entityId:   randomUUID(),
       payload: {
         decision:         ApprovalStatus.APPROVED,
