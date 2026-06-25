@@ -4,7 +4,9 @@ import { useAuth } from '@clerk/clerk-react';
 import { apiFetch } from '../lib/api';
 
 interface BillingStatus {
-  tier:               'STARTER' | 'GROWTH' | 'ENTERPRISE';
+  tier:               'FREE' | 'STARTER' | 'GROWTH' | 'ENTERPRISE';
+  isFreeTier:         boolean;
+  priceUsd:           number;
   subscriptionStatus: string;
   stripeCustomerId:   string | null;
   stripePriceId:      string | null;
@@ -96,6 +98,8 @@ export default function Billing() {
   const usagePct = status
     ? Math.min(100, Math.round((status.callsThisMonth / status.callLimit) * 100))
     : 0;
+  const barColor = usagePct >= 100 ? 'var(--error)' : usagePct >= 80 ? 'var(--warning)' : 'var(--brand)';
+  const limitReached = usagePct >= 100;
 
   return (
     <div>
@@ -147,6 +151,11 @@ export default function Billing() {
               <div style={{ fontSize: '16px', fontWeight: 600, color: 'var(--text)', marginTop: '2px' }}>
                 {status.tier.charAt(0) + status.tier.slice(1).toLowerCase()}
               </div>
+              {status.isFreeTier && (
+                <div style={{ fontSize: '11px', color: 'var(--text-3)', marginTop: '4px', fontFamily: 'var(--mono)' }}>
+                  1,000 calls/month · No expiry · No credit card
+                </div>
+              )}
             </div>
             <div style={{ textAlign: 'right' }}>
               <span style={{ fontFamily: 'var(--mono)', fontSize: '11px', color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
@@ -167,10 +176,15 @@ export default function Billing() {
           <div style={{ height: '4px', background: 'var(--border)', borderRadius: '2px', overflow: 'hidden' }}>
             <div style={{
               height: '100%', width: `${usagePct}%`,
-              background: usagePct > 80 ? 'var(--warning)' : 'var(--brand)',
+              background: barColor,
               borderRadius: '2px', transition: 'width 0.3s',
             }} />
           </div>
+          {limitReached && (
+            <div style={{ fontSize: '12px', color: 'var(--error)', marginTop: '8px' }}>
+              Limit reached — API calls are paused until you upgrade.
+            </div>
+          )}
         </div>
       )}
 
@@ -226,6 +240,13 @@ export default function Billing() {
           );
         })}
       </div>
+
+      {/* Invoice history — paid tiers only */}
+      {status?.isFreeTier && (
+        <p style={{ fontSize: '12px', color: 'var(--text-3)', marginTop: '24px' }}>
+          Invoices appear here once you upgrade to a paid plan.
+        </p>
+      )}
     </div>
   );
 }

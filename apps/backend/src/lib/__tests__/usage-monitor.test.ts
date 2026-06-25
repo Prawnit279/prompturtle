@@ -73,6 +73,26 @@ describe('checkAndWarnUsage', () => {
     expect(mockDispatch).not.toHaveBeenCalled();
   });
 
+  it('dispatches usage.threshold_reached(80) for FREE tier at 800 calls', async () => {
+    await checkAndWarnUsage('tenant-1', TenantTier.FREE, 800);
+
+    expect(mockDispatch).toHaveBeenCalledWith(
+      'tenant-1',
+      'usage.threshold_reached',
+      expect.objectContaining({ threshold: 80 }),
+    );
+  });
+
+  it('dispatches usage.threshold_reached(100) for FREE tier at 1,000 calls', async () => {
+    await checkAndWarnUsage('tenant-1', TenantTier.FREE, 1_000);
+
+    expect(mockDispatch).toHaveBeenCalledWith(
+      'tenant-1',
+      'usage.threshold_reached',
+      expect.objectContaining({ threshold: 100 }),
+    );
+  });
+
   it('never enforces a usage threshold for ENTERPRISE (unlimited)', async () => {
     await checkAndWarnUsage('tenant-1', TenantTier.ENTERPRISE, 500_000);
 

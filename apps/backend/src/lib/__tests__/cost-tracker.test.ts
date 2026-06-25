@@ -167,6 +167,26 @@ describe('trackedCall', () => {
     );
   });
 
+  it('allows a FREE tenant under the 1,000 monthly cap (999 calls)', async () => {
+    mockPrisma.toolCall.count
+      .mockResolvedValueOnce(0)   // per-minute check: under FREE 5/min
+      .mockResolvedValueOnce(999); // per-month check: under FREE 1,000
+
+    await expect(
+      trackedCall({ ...defaultOptions, tier: TenantTier.FREE }, async () => ({ ok: true })),
+    ).resolves.toEqual({ ok: true });
+  });
+
+  it('blocks a FREE tenant at the 1,000 monthly cap', async () => {
+    mockPrisma.toolCall.count
+      .mockResolvedValueOnce(0)     // per-minute check: under FREE 5/min
+      .mockResolvedValueOnce(1_000); // per-month check: at FREE 1,000
+
+    await expect(
+      trackedCall({ ...defaultOptions, tier: TenantTier.FREE }, async () => ({})),
+    ).rejects.toThrow(TierLimitExceededError);
+  });
+
   it('does not enforce a monthly cap for ENTERPRISE (unlimited)', async () => {
     // callsPerMonth === 0 means unlimited — a huge month count must not throw.
     mockPrisma.toolCall.count

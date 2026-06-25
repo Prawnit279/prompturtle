@@ -15,6 +15,7 @@ datasource db {
 // ---------------------------------------------------------------------------
 
 enum TenantTier {
+  FREE
   STARTER
   GROWTH
   ENTERPRISE
@@ -65,7 +66,7 @@ enum BolType {
 model Tenant {
   id                 String      @id  // Clerk org_id (e.g. "org_xxx") — not a UUID
   name               String
-  tier               TenantTier  @default(STARTER)
+  tier               TenantTier  @default(FREE)
   api_key_hash       String?
   // Contact — PR 6.1
   email                  String?

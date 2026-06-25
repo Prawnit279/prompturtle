@@ -37,10 +37,13 @@ router.get('/status', async (req: Request, res: Response, next: NextFunction): P
     });
 
     const tier       = tenant.tier as TenantTier;
-    const callLimit  = TIER_LIMITS[tier]?.callsPerMonth ?? 1_000;
+    const limits     = TIER_LIMITS[tier];
+    const callLimit  = limits?.callsPerMonth ?? 1_000;
 
     res.json({
       tier,
+      isFreeTier:         tier === TenantTier.FREE,
+      priceUsd:           limits?.priceUsd ?? 0,
       subscriptionStatus: tenant.subscription_status ?? 'inactive',
       stripeCustomerId:   tenant.stripe_customer_id ?? null,
       stripePriceId:      tenant.stripe_price_id    ?? null,
@@ -114,8 +117,9 @@ router.post('/portal', async (req: Request, res: Response, next: NextFunction): 
       select: { stripe_customer_id: true },
     });
 
+    // FREE tier (and any tenant without a Stripe customer) has no portal.
     if (!tenant?.stripe_customer_id) {
-      res.status(400).json({ error: 'No active subscription found' });
+      res.status(400).json({ error: 'Upgrade to a paid plan to manage billing' });
       return;
     }
 

@@ -109,13 +109,20 @@ beforeEach(() => {
 
 // ===========================================================================
 describe('sendWelcomeEmail', () => {
-  it('calls resend.emails.send with correct to/subject', async () => {
+  it('uses the free-tier subject by default', async () => {
     await sendWelcomeEmail({ to: 'a@b.com', tenantName: 'Acme', apiKey: 'ptk_test' });
     expect(mockSend).toHaveBeenCalledWith(
       expect.objectContaining({
         to:      'a@b.com',
-        subject: expect.stringContaining('Welcome'),
+        subject: expect.stringContaining("You're in"),
       }),
+    );
+  });
+
+  it('uses the paid welcome subject for a paid tier', async () => {
+    await sendWelcomeEmail({ to: 'a@b.com', tenantName: 'Acme', apiKey: 'ptk_test', tier: 'STARTER' });
+    expect(mockSend).toHaveBeenCalledWith(
+      expect.objectContaining({ subject: expect.stringContaining('Welcome') }),
     );
   });
 

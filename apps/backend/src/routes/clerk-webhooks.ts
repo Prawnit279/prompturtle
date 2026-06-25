@@ -62,7 +62,7 @@ router.post('/', async (req: Request, res: Response): Promise<void> => {
         create: {
           id:   orgId,
           name: orgName || 'Unnamed Organization',
-          tier: TenantTier.STARTER,
+          tier: TenantTier.FREE,
         },
       });
       logger.info({ orgId, orgName }, 'clerk-webhook.tenant_created');
@@ -111,6 +111,7 @@ router.post('/', async (req: Request, res: Response): Promise<void> => {
           to:         email,
           tenantName: name || 'there',
           apiKey:     '(Create your first API key in the dashboard)',
+          tier:       TenantTier.FREE, // new signups start on the free tier
         });
       }
     } catch (err) {

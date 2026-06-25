@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link, useLocation, Outlet } from 'react-router-dom';
 import ProgueLogo from './ProgueLogo';
+import FreeTierBanner from './FreeTierBanner';
 import { OrganizationSwitcher, UserButton, useAuth, useOrganizationList } from '@clerk/clerk-react';
 import {
   IconChartBar,
@@ -111,6 +112,9 @@ export default function DashboardLayout() {
           />
         </div>
       </header>
+
+      {/* Persistent free-tier banner — renders only for FREE tenants */}
+      <FreeTierBanner />
 
       {/* ── Body ── */}
       <div style={{ display: 'flex', flex: 1, minHeight: 0 }}>
