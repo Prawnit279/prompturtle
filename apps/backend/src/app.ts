@@ -21,6 +21,7 @@ import webhookRouter from './routes/webhooks.js';
 import keysRouter from './routes/keys.js';
 import logsRouter from './routes/logs.js';
 import riskRouter from './routes/risk.js';
+import supplierRiskRouter from './routes/supplier-risk.js';
 import usageRouter from './routes/usage.js';
 import webhookEndpointsRouter from './routes/webhook-endpoints.js';
 import { BolProcessorMCP } from './mcp/servers/BolProcessorMCP.js';
@@ -145,6 +146,7 @@ protectedRouter.use('/keys',    keysRouter);
 protectedRouter.use('/logs',    logsRouter);
 protectedRouter.use('/usage',   usageRouter);
 protectedRouter.use('/risk',    riskRouter);
+protectedRouter.use('/supplier-risk', supplierRiskRouter);
 protectedRouter.use('/webhooks', webhookEndpointsRouter);
 protectedRouter.use('/guardrails', guardrailsRouter);
 

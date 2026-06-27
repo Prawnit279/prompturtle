@@ -46,6 +46,7 @@ const SECTIONS: NavSection[] = [
       { label: 'Approval Workflow', to: '/docs/api/approval' },
       { label: 'Audit Trail', to: '/docs/api/audit' },
       { label: 'Shipment Risk Score', to: '/docs/api/risk' },
+      { label: 'Supplier Risk', to: '/docs/api/supplier-risk' },
     ],
   },
   {
