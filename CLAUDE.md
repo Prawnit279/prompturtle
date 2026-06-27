@@ -128,8 +128,9 @@ apps/backend/src/
 │       ├── BolProcessorMCP.ts       3 tools: extract_bol_fields, validate_bol_data, flag_bol_discrepancies
 │       ├── CarrierRatesMCP.ts       3 tools: get_carrier_rates, compare_carrier_options, recommend_carrier
 │       ├── HtsClassifierMCP.ts      3 tools: classify_product, validate_classification, get_duty_rates
+│       ├── RiskScorerMCP.ts         LIVE: score_shipment (cross-module risk; reads GuardrailConfig)
+│       ├── SupplierRiskMCP.ts       LIVE: score_supplier, get_supplier_profile, list_certifications
 │       ├── CarbonTrackingMCP.ts     STUB (Phase 2) — throws NotImplementedError
-│       ├── SupplierRiskMCP.ts       STUB (Phase 2) — throws NotImplementedError
 │       └── schemas/
 │           └── hts-classifier.schemas.ts
 ├── routes/
@@ -222,9 +223,12 @@ Phase2Feature:   CARBON_TRACKING | SUPPLIER_RISK  ← DO NOT REMOVE
 
 | Tier | Price | Calls/min | Calls/month |
 |---|---|---|---|
+| FREE | $0/mo | 5 | 1,000 |
 | STARTER | $149/mo | 10 | 10,000 |
 | GROWTH | $599/mo | 60 | 100,000 |
 | ENTERPRISE | $1,999/mo | 300 | Unlimited (`callsPerMonth: 0`) |
+
+New tenants default to **FREE** (no card). Single source of truth: `TIER_LIMITS` in `packages/shared/src/types/tenant.ts` (has `callsPerMonth`, `callsPerMinute`, `priceUsd`); frontend plan cards derive from `apps/frontend/src/content/plans.ts` (mirror these numbers).
 
 ---
 
@@ -318,7 +322,7 @@ Depends on: PR 5.2
 
 ## Test Suite Status
 
-- **Backend:** 239 passing, 2 skipped (DB connection skips in `db.rls.test.ts`)
+- **Backend:** ~424 passing, 2 skipped (count drifts — run `npx vitest run` to confirm)
 - **Frontend:** `tsc --noEmit` clean (0 errors)
 - **Test runner:** `npx vitest run` from `apps/backend/`
 - **Integration tests:** supertest + full app mock (Clerk, Prisma, Anthropic all mocked)
@@ -384,8 +388,27 @@ vi.mock('@clerk/clerk-sdk-node', () => ({
 
 When starting a new session:
 1. `cd ~/Projects/prompturtle`
-2. `git branch` — confirm which branch you're on
-3. `npx vitest run` from `apps/backend/` — confirm 196 pass / 2 skip
-4. `npx tsc --noEmit` from `apps/frontend/` — confirm clean
-5. Check `git log --oneline -5` for latest context
-6. Next up: **PR 5.2** (Stripe billing) → then **PR 5.3** (Stripe webhooks)
+2. `git branch` — confirm which branch you're on (`main` is current; feature branches merge into it)
+3. `npx vitest run` from `apps/backend/` — confirm ~424 pass / 2 skip
+4. `npx tsc --noEmit` from `apps/frontend/` AND `apps/backend/` — confirm clean
+5. Check `git log --oneline -8` for latest context
+
+---
+
+## Current State & Deploy Workflow (updated 2026-06-27)
+
+**Shipped & live on `main` (deployed):**
+- Webhooks (outbound, HMAC-signed, retries) · Shipment Risk Score (`/api/risk/score`) · Per-tenant Guardrail Config (`/api/guardrails/config`) · FREE tier (1,000 calls, default for new tenants) · pricing/rate reconciliation · Supplier Risk (`/api/supplier-risk/score`).
+- **Live MCP servers:** bol-processor, carrier-rates, hts-classifier, risk-scorer, supplier-risk. **Still STUB:** carbon-tracking.
+- **Supabase migrations applied:** through `0012` (0009 webhooks, 0010 guardrail_configs, 0011 FREE enum value, 0012 FREE default). Use `mcp__supabase__apply_migration` (project `aowvybglokzbcuerlago`); native PG broken.
+- `packages/shared` is a **built** package (`main: dist/index.js`) — after editing `src/`, run `npm run build` in `packages/shared` or backend tsc fails on stale `dist`. (CLAUDE.md's older "no build step" note is wrong.)
+
+**Git / merge / deploy (IMPORTANT):**
+- SSH remote only. The GitHub **PAT cannot merge/create PRs reliably via API** for some ops (Contents: write missing) — to merge, do an **SSH local-merge**: `git checkout main && git pull --ff-only && git merge --no-ff feat/X -m "Merge PR #N: …" && git push origin main`. GitHub auto-closes the PR.
+- `main` has **no branch protection** (SSH pushes to main succeed). Pushing to main **auto-deploys**: frontend → Vercel project `progue` (production), backend → Railway (GH Action "Deploy Backend").
+- The Vercel `prompturtle-backend` check **always fails** (vestigial — backend is on Railway); `e2e` check is env-flaky. Neither blocks; the real gates are `test` / `typecheck` / `typecheck-frontend` / Vercel `progue`.
+- Git attribution is OFF (no `Co-Authored-By` trailer).
+
+**Docs / marketing spec files (OUTSIDE the repo):** `~/Desktop/Claude Test Runs/Prompturtle/` — `DOCS_CONTENT.md` (docs source), `progue_website_copy.md` (marketing). New module/feature prompts ship "PATCH A/B/C" blocks to copy here. React docs pages live at `apps/frontend/src/pages/docs/api/*` + `reference/*` (built on `DocsPage` + `DocsPrimitives`; register route in `App.tsx` + sidebar in `components/docs/DocsLayout.tsx`).
+
+**Known deferred (LOW) items:** guardrail money fields are `Float` (not `Decimal`); `FreeTierBanner` duplicates the `/billing/status` fetch; `routes/risk.ts` & `routes/supplier-risk.ts` async-throw handling (supplier-risk catches ZodError→400, risk.ts does not).
