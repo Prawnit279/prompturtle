@@ -5,7 +5,6 @@ import { TenantTier } from '@prompturtle/shared';
 import { NotImplementedError } from '../../types.js';
 import type { ToolCallContext } from '../../types.js';
 import { CarbonTrackingMCP } from '../CarbonTrackingMCP.js';
-import { SupplierRiskMCP } from '../SupplierRiskMCP.js';
 
 function makeCtx(): ToolCallContext {
   return {
@@ -59,48 +58,8 @@ describe('CarbonTrackingMCP', () => {
 });
 
 // ===========================================================================
-describe('SupplierRiskMCP', () => {
-  const server = new SupplierRiskMCP();
-
-  it('has correct name and stub version', () => {
-    expect(server.name).toBe('supplier-risk');
-    expect(server.version).toBe('0.0.0-stub');
-  });
-
-  it('exposes exactly 3 tools', () => {
-    expect(server.tools).toHaveLength(3);
-    const names = server.tools.map(t => t.name);
-    expect(names).toContain('score_supplier_risk');
-    expect(names).toContain('get_supplier_alerts');
-    expect(names).toContain('recommend_supplier_alternatives');
-  });
-
-  it.each([
-    'score_supplier_risk',
-    'get_supplier_alerts',
-    'recommend_supplier_alternatives',
-  ])('%s throws NotImplementedError', async (toolName) => {
-    await expect(server.executeTool(toolName, {}, makeCtx()))
-      .rejects.toThrow(NotImplementedError);
-  });
-
-  it('NotImplementedError message contains sales contact', async () => {
-    try {
-      await server.executeTool('score_supplier_risk', {}, makeCtx());
-    } catch (err) {
-      expect(err).toBeInstanceOf(NotImplementedError);
-      expect((err as NotImplementedError).message).toContain('sales@prompturtle.com');
-    }
-  });
-
-  it('throws "not found" for unknown tool', async () => {
-    await expect(server.executeTool('ghost', {}, makeCtx()))
-      .rejects.toThrow("Tool 'ghost' not found");
-  });
-});
-
-// ===========================================================================
-describe('CARBON_TRACKING + SUPPLIER_RISK schema enums', () => {
+// SupplierRiskMCP is no longer a stub — it ships live (see SupplierRiskMCP.test.ts).
+describe('Phase 2 stub invariants', () => {
   it('Phase2Feature enum is still present in shared package', async () => {
     // If this import fails the Phase2Feature enum was removed — stop and fix
     const { TenantTier: t } = await import('@prompturtle/shared');
