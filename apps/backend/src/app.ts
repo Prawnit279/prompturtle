@@ -21,6 +21,7 @@ import webhookRouter from './routes/webhooks.js';
 import keysRouter from './routes/keys.js';
 import logsRouter from './routes/logs.js';
 import riskRouter from './routes/risk.js';
+import reverseLogisticsRouter from './routes/reverse-logistics.js';
 import supplierRiskRouter from './routes/supplier-risk.js';
 import usageRouter from './routes/usage.js';
 import webhookEndpointsRouter from './routes/webhook-endpoints.js';
@@ -30,6 +31,7 @@ import { CarbonTrackingMCP } from './mcp/servers/CarbonTrackingMCP.js';
 import { HtsClassifierMCP } from './mcp/servers/HtsClassifierMCP.js';
 import { RiskScorerMCP } from './mcp/servers/RiskScorerMCP.js';
 import { SupplierRiskMCP } from './mcp/servers/SupplierRiskMCP.js';
+import { ReverseLogisticsMCP } from './mcp/servers/ReverseLogisticsMCP.js';
 import { GuardrailViolationError } from './mcp/types.js';
 import { registerServer } from './mcp/registry.js';
 
@@ -128,6 +130,7 @@ registerServer(new HtsClassifierMCP());
 registerServer(new CarbonTrackingMCP());
 registerServer(new SupplierRiskMCP());
 registerServer(new RiskScorerMCP());
+registerServer(new ReverseLogisticsMCP());
 
 // ---- Protected router ----
 // All feature routes must mount onto this router — enforces auth + tenant context.
@@ -147,6 +150,7 @@ protectedRouter.use('/logs',    logsRouter);
 protectedRouter.use('/usage',   usageRouter);
 protectedRouter.use('/risk',    riskRouter);
 protectedRouter.use('/supplier-risk', supplierRiskRouter);
+protectedRouter.use('/reverse-logistics', reverseLogisticsRouter);
 protectedRouter.use('/webhooks', webhookEndpointsRouter);
 protectedRouter.use('/guardrails', guardrailsRouter);
 

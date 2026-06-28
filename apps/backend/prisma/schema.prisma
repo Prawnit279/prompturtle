@@ -59,6 +59,25 @@ enum BolType {
   OCEAN_BOL
 }
 
+enum ReturnStatus {
+  INITIATED
+  APPROVED
+  CARRIER_ASSIGNED
+  IN_TRANSIT
+  RECEIVED
+  PROCESSED
+  CANCELLED
+}
+
+enum ReturnReason {
+  DAMAGED_IN_TRANSIT
+  WRONG_ITEM_SHIPPED
+  QUALITY_ISSUE
+  ORDER_CANCELLED
+  EXCESS_INVENTORY
+  SPECIFICATION_MISMATCH
+}
+
 // ---------------------------------------------------------------------------
 // Models
 // ---------------------------------------------------------------------------
@@ -89,6 +108,7 @@ model Tenant {
   approval_requests ApprovalRequest[]
   webhooks          Webhook[]
   guardrail_config  GuardrailConfig?
+  return_requests   ReturnRequest[]
 
   @@map("tenants")
 }
@@ -321,4 +341,35 @@ model WebhookDelivery {
   @@index([webhook_id])
   @@index([created_at])
   @@map("webhook_deliveries")
+}
+
+// ---------------------------------------------------------------------------
+// Reverse Logistics (Phase 2) — inbound returns / RMAs. snake_case per repo
+// convention (the source prompt used camelCase; consistency with the rest of
+// the schema wins, same as the Week 3 Webhook model). `items` is a JSON array
+// of ReturnLineItem. `declared_value` is USD (Float — see GuardrailConfig note).
+// ---------------------------------------------------------------------------
+
+model ReturnRequest {
+  id                  String       @id @default(cuid())
+  tenant_id           String
+  tenant              Tenant       @relation(fields: [tenant_id], references: [id], onDelete: Cascade)
+  rma_number          String       @unique
+  original_bol_number String?
+  status              ReturnStatus @default(INITIATED)
+  return_reason       ReturnReason
+  items               Json // ReturnLineItem[]
+  declared_value      Float
+  currency            String       @default("USD")
+  return_carrier      String?
+  urgency             String       @default("standard") // 'standard' | 'expedited' | 'critical'
+  return_bol_number   String? // BOL number generated for the return shipment
+  approval_id         String? // ties to approval workflow if high-value
+  created_at          DateTime     @default(now())
+  updated_at          DateTime     @updatedAt
+
+  @@index([tenant_id])
+  @@index([rma_number])
+  @@index([tenant_id, status])
+  @@map("return_requests")
 }
