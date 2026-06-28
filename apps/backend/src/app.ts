@@ -22,6 +22,7 @@ import keysRouter from './routes/keys.js';
 import logsRouter from './routes/logs.js';
 import riskRouter from './routes/risk.js';
 import reverseLogisticsRouter from './routes/reverse-logistics.js';
+import carbonRouter, { carbonPublicRouter } from './routes/carbon.js';
 import supplierRiskRouter from './routes/supplier-risk.js';
 import usageRouter from './routes/usage.js';
 import webhookEndpointsRouter from './routes/webhook-endpoints.js';
@@ -122,6 +123,10 @@ app.use((req: Request, res: Response, next: NextFunction) => {
 
 // ---- Public routes ----
 app.use('/api/docs', docsRouter);
+// Carbon emission factors are a public reference query (no auth). Mounted here so
+// GET /api/carbon/factors never reaches requireTenant; POST /api/carbon/* falls
+// through to the protected router below.
+app.use('/api/carbon', carbonPublicRouter);
 
 // ---- MCP server registration ----
 registerServer(new BolProcessorMCP());
@@ -151,6 +156,7 @@ protectedRouter.use('/usage',   usageRouter);
 protectedRouter.use('/risk',    riskRouter);
 protectedRouter.use('/supplier-risk', supplierRiskRouter);
 protectedRouter.use('/reverse-logistics', reverseLogisticsRouter);
+protectedRouter.use('/carbon', carbonRouter);
 protectedRouter.use('/webhooks', webhookEndpointsRouter);
 protectedRouter.use('/guardrails', guardrailsRouter);
 
