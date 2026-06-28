@@ -18,6 +18,7 @@ const servers = new Map<string, BaseMCPServer | null>([
   ['carbon-tracking', null], // Phase 2 feature — stub sealed by PR 4.3
   ['supplier-risk',   null], // Phase 2 feature — stub sealed by PR 4.3
   ['risk-scorer',     null], // Shipment Risk Score — Week 2
+  ['reverse-logistics', null], // Reverse Logistics — Phase 2
 ]);
 
 /** Register a concrete server. Throws if the slot is not pre-reserved. */

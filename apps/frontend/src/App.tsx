@@ -33,6 +33,7 @@ import ApiApproval             from './pages/docs/api/Approval';
 import ApiAudit                from './pages/docs/api/Audit';
 import ApiRisk                 from './pages/docs/api/Risk';
 import ApiSupplierRisk         from './pages/docs/api/SupplierRisk';
+import ApiReverseLogistics     from './pages/docs/api/ReverseLogistics';
 import ReferenceErrors         from './pages/docs/reference/Errors';
 import ReferenceRateLimits     from './pages/docs/reference/RateLimits';
 import ReferenceVersioning     from './pages/docs/reference/Versioning';
@@ -81,6 +82,7 @@ export default function App() {
           <Route path="api/audit"                element={<ApiAudit />} />
           <Route path="api/risk"                 element={<ApiRisk />} />
           <Route path="api/supplier-risk"        element={<ApiSupplierRisk />} />
+          <Route path="api/reverse-logistics"    element={<ApiReverseLogistics />} />
           <Route path="reference/errors"         element={<ReferenceErrors />} />
           <Route path="reference/rate-limits"    element={<ReferenceRateLimits />} />
           <Route path="reference/versioning"     element={<ReferenceVersioning />} />
