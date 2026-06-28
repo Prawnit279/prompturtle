@@ -15,3 +15,4 @@ export * from './types/webhook';
 export * from './types/guardrail';
 export * from './types/supplier-risk';
 export * from './types/reverse-logistics';
+export * from './types/carbon';
