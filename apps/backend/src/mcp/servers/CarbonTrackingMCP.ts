@@ -107,6 +107,20 @@ function toTonnes(kg: number): number {
   return Math.round((kg / 1000) * 1000) / 1000;
 }
 
+/**
+ * Inclusive end bound for a report period. A date-only string (e.g.
+ * '2026-06-30') parses to midnight UTC, which would exclude almost the entire
+ * day from a `created_at <= to` query; extend it to the end of that day so
+ * month-boundary reports aren't truncated. Datetime inputs are respected as-is.
+ */
+function toRangeEnd(value: string): Date {
+  const d = new Date(value);
+  if (/^\d{4}-\d{2}-\d{2}$/.test(value.trim())) {
+    d.setUTCHours(23, 59, 59, 999);
+  }
+  return d;
+}
+
 /** Pure CO2e calculation: (weightKg/1000) × distanceKm × emissionFactor. */
 function co2eForLeg(weightKg: number, distanceKm: number, mode: TransportMode): number {
   return round2((weightKg / 1000) * distanceKm * EMISSION_FACTORS[mode]);
@@ -316,7 +330,7 @@ export class CarbonTrackingMCP extends BaseMCPServer {
   private async generateReport(input: unknown, ctx: ToolCallContext): Promise<ToolCallResult> {
     const parsed = GenerateReportInputSchema.parse(input);
     const from = new Date(parsed.from);
-    const to = new Date(parsed.to);
+    const to = toRangeEnd(parsed.to);
 
     const events = await queryAuditLog(ctx.tenantId, {
       entityType: 'carbon_footprint',

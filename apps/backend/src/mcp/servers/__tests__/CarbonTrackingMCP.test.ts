@@ -192,4 +192,18 @@ describe('generate_report', () => {
     expect(d.totalShipments).toBe(0);
     expect(d.totalCo2eKg).toBe(0);
   });
+
+  it('queries with an end-of-day upper bound so the `to` day is included', async () => {
+    await server.executeTool('generate_report', { from: '2026-06-01', to: '2026-06-30' }, makeCtx());
+    const filters = mockQuery.mock.calls[0]?.[1] as { from: Date; to: Date };
+    expect(filters.to.toISOString()).toBe('2026-06-30T23:59:59.999Z');
+    expect(filters.from.toISOString()).toBe('2026-06-01T00:00:00.000Z');
+  });
+
+  it('rejects an unparseable date range instead of 500-ing', async () => {
+    await expect(
+      server.executeTool('generate_report', { from: 'not-a-date', to: 'also-bad' }, makeCtx()),
+    ).rejects.toThrow();
+    expect(mockQuery).not.toHaveBeenCalled();
+  });
 });
