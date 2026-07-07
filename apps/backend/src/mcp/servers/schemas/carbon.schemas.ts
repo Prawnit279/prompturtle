@@ -33,9 +33,16 @@ export type CompareRoutesInput = z.infer<typeof CompareRoutesInput>;
 
 // ---- generate_report ----
 
+// Report period bounds must be parseable dates — otherwise `new Date(...)` is
+// Invalid Date and the downstream query throws a raw 500 instead of a clean 422.
+const ReportDate = z
+  .string()
+  .min(1)
+  .refine((v) => !Number.isNaN(Date.parse(v)), { message: 'must be a parseable ISO 8601 date' });
+
 export const GenerateReportInput = z.object({
-  from: z.string().min(1),
-  to:   z.string().min(1),
+  from: ReportDate,
+  to:   ReportDate,
 });
 
 export type GenerateReportInput = z.infer<typeof GenerateReportInput>;
