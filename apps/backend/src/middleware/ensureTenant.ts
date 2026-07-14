@@ -43,9 +43,16 @@ export async function ensureTenant(_req: Request, res: Response, next: NextFunct
       },
     });
     knownTenants.add(tenantId);
-    next();
   } catch (err) {
-    logger.error({ err, tenantId }, 'ensure-tenant.upsert_failed');
-    res.status(500).json({ error: 'tenant_provisioning_failed' });
+    // Fail OPEN: this middleware is a best-effort safety net for brand-new
+    // orgs whose Clerk webhook didn't create a Tenant row. If the upsert
+    // fails (the row usually already exists), we must not take the whole
+    // dashboard down — downstream reads still work when the row is present,
+    // and a genuine missing row only affects writes (the behaviour before
+    // this middleware existed). We do NOT cache on failure, so provisioning
+    // is retried on the next request.
+    logger.warn({ err, tenantId }, 'ensure-tenant.upsert_failed');
   }
+
+  next();
 }
