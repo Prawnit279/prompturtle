@@ -41,7 +41,7 @@ export const PLANS: Plan[] = [
     calls:       '1,000 calls / mo',
     rateLimit:   '5 req / min',
     features: [
-      'All 5 Phase 1 modules',
+      'All 9 modules',
       'Full audit trail',
       'Community support',
       'No credit card required',
@@ -57,7 +57,7 @@ export const PLANS: Plan[] = [
     calls:       '10,000 calls / mo',
     rateLimit:   '10 req / min',
     features: [
-      'All 5 Phase 1 modules',
+      'All 9 modules',
       'Full audit trail',
       'Email support',
       'Clerk-based auth',
@@ -74,7 +74,7 @@ export const PLANS: Plan[] = [
     calls:       '100,000 calls / mo',
     rateLimit:   '60 req / min',
     features: [
-      'All 5 Phase 1 modules',
+      'All 9 modules',
       'Full audit trail',
       'Priority email support',
       'Usage analytics dashboard',
@@ -92,7 +92,7 @@ export const PLANS: Plan[] = [
     calls:       'Unlimited',
     rateLimit:   '300 req / min',
     features: [
-      'All 5 Phase 1 modules',
+      'All 9 modules',
       'Full audit trail',
       'Dedicated support',
       'Custom guardrail rules',

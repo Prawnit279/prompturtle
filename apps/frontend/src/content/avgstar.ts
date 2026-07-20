@@ -145,7 +145,7 @@ export const heroContent: HeroContent = {
     { label: 'Read the docs', kind: 'btn2', href: '/docs' },
   ],
   stats: [
-    ['5',     'modules'],
+    ['9',     'modules'],
     ['90%+',  'HTS accuracy'],
     ['1 wk',  'to first agent'],
     ['99.9%', 'uptime'],
@@ -184,7 +184,7 @@ export const definitionContent: DefinitionContent = {
 
 export const modulesContent: ModulesContent = {
   num:   '03',
-  label: 'Phase 1 modules',
+  label: 'Nine live modules',
   h2:    'Built for the logistics execution layer.',
   cards: [
     { n: '01', t: 'BOL Processing',            d: 'Parse, validate, extract line items and flag compliance issues on bills of lading.',                          tools: ['parse_bol', 'validate_bol', 'extract_line_items', 'flag_compliance'],    glyph: 'doc' },
@@ -192,13 +192,17 @@ export const modulesContent: ModulesContent = {
     { n: '03', t: 'HTS / Customs Classification', d: 'HS-code classification, tariff lookup, CBAM applicability, and audit-risk flagging.',                     tools: ['classify_hs_code', 'lookup_tariff', 'check_cbam', 'flag_audit_risk'],    glyph: 'hex' },
     { n: '04', t: 'Approval Workflow',          d: 'Request approval, auto-approve safe decisions, escalate the rest to the right role.',                       tools: ['request_approval', 'auto_approve_safe', 'escalate_to_role', 'record_decision'], glyph: 'branch' },
     { n: '05', t: 'Audit Trail',               d: 'Append-only decision logs, history facts, and exportable reports compliance will accept.',                   tools: ['log_decision', 'list_history', 'export_report', 'verify_chain'],         glyph: 'chain' },
+    { n: '06', t: 'Shipment Risk Score',       d: 'Cross-module 0–100 shipment risk from HTS confidence, carrier approval, cost thresholds, compliance flags, and customs readiness.', tools: ['score_shipment'], glyph: 'hex' },
+    { n: '07', t: 'Supplier Risk',             d: 'Deterministic 0–100 supplier scoring from transaction history, with a four-tier recommendation, sanctions heuristic, and CBAM flag.', tools: ['score_supplier', 'get_supplier_profile', 'list_certifications'], glyph: 'tree' },
+    { n: '08', t: 'Reverse Logistics',         d: 'RMA generation, return eligibility, carrier selection, return BOL, and high-value approval — every return audited.', tools: ['create_return', 'validate_return_eligibility', 'route_return', 'cancel_return'], glyph: 'branch' },
+    { n: '09', t: 'Carbon Footprint Tracking', d: 'Per-shipment CO₂e from GLEC 3.0 factors, mode comparison, CBAM HS-scope detection, and audited period reports.', tools: ['calculate_footprint', 'compare_routes', 'get_emission_factors', 'generate_report'], glyph: 'chain' },
   ],
 };
 
 export const integrationContent: IntegrationContent = {
   num:   '04',
   label: 'How it integrates',
-  h2:    'One endpoint. Five modules. Zero infrastructure.',
+  h2:    'One endpoint. Nine modules. Zero infrastructure.',
   engine: [
     ['system_prompts', '/ role'],
     ['schemas',        '/ JSON'],
@@ -332,7 +336,7 @@ export const aboutPageContent: AboutPageContent = {
     { n: '01', t: 'Auditability first',   d: 'Every decision Progue touches writes to an append-only log. Compliance is a first-class requirement, not an afterthought.',     c: 'var(--brand)' },
     { n: '02', t: 'Multi-tenancy native', d: 'Tenant isolation is baked into every layer — schema, guardrail, memory, and billing. There is no single-tenant version.',      c: 'var(--info)' },
     { n: '03', t: 'No LLM lock-in',      d: 'The MCP layer is model-agnostic. Claude is the default; the architecture lets you swap when it matters.',                       c: 'var(--brand-lift)' },
-    { n: '04', t: 'Ship, then expand',   d: 'Phase 1 ships five modules. Phase 2 adds carbon tracking, supplier risk, and demand forecasting — when the demand is proven.',  c: 'var(--teal)' },
+    { n: '04', t: 'Ship, then expand',   d: 'Nine modules ship today — processing, compliance, risk, returns, and carbon. New modules are added when the demand is proven, not before.',  c: 'var(--teal)' },
   ],
   contact: 'hello@progue.ai',
 };
