@@ -92,7 +92,9 @@ export default function DocsLayout() {
           <Link to="/" className="no-underline" style={{ lineHeight: 0 }}>
             <ProgueLogo height={38} />
           </Link>
-          <span className="ml-2 font-[family-name:var(--mono)] text-[10px] uppercase tracking-[0.1em] text-[var(--text-3)]">
+          {/* ml-5, not ml-2: the wordmark's rose line + end-dot paint ~12px beyond
+              the logo's layout box, so a tighter gap collides with "Docs". */}
+          <span className="ml-5 font-[family-name:var(--mono)] text-[10px] uppercase tracking-[0.1em] text-[var(--text-3)]">
             Docs
           </span>
         </div>
